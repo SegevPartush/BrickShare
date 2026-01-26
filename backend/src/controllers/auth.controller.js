@@ -1,5 +1,5 @@
 const User = require('../models/user.model');
-const { generateAccessToken, generateRefreshToken } = require('../utils/jwt.utils');
+const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../utils/jwt.utils');
 
 const register = async (req, res) => {
   try {
@@ -63,7 +63,56 @@ const login = async (req, res) => {
   }
 };
 
+const refresh = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(401).json({ message: 'Refresh token required' });
+    }
+
+    const decoded = verifyRefreshToken(refreshToken);
+    const user = await User.findById(decoded.userId);
+
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    const newAccessToken = generateAccessToken(user._id);
+    const newRefreshToken = generateRefreshToken(user._id);
+
+    res.json({
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken
+    });
+  } catch (error) {
+    res.status(401).json({ message: 'Invalid refresh token' });
+  }
+};
+
+const getMe = async (req, res) => {
+  try {
+    const user = await User.findById(req.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        profileImage: user.profileImage,
+        createdAt: user.createdAt
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to get user', error: error.message });
+  }
+};
+
 module.exports = {
   register,
-  login
+  login,
+  refresh,
+  getMe
 };
