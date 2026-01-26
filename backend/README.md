@@ -9,11 +9,11 @@ Backend API for BrickShare - Social network for LEGO collectors.
 npm install
 ```
 
-2. Create `.env` file:
+2. Create `.env` file in backend folder:
 ```
 MONGO_URI=your_mongodb_connection_string
 PORT=3000
-JWT_SECRET=your_jwt_secret
+JWT_SECRET=your_jwt_secret_key
 JWT_REFRESH_SECRET=your_refresh_token_secret
 ```
 
@@ -21,6 +21,8 @@ JWT_REFRESH_SECRET=your_refresh_token_secret
 ```bash
 npm run dev
 ```
+
+Server will run on `http://localhost:3000`
 
 ## Project Structure
 
@@ -31,7 +33,7 @@ backend/
 │   ├── routes/          # API routes
 │   ├── controllers/     # Route controllers
 │   ├── middleware/      # Custom middleware
-│   ├── services/        # Business logic services
+│   ├── services/        # Additional services
 │   ├── utils/          # Utility functions
 │   └── server.js       # Entry point
 └── package.json
@@ -39,4 +41,24 @@ backend/
 
 ## API Endpoints
 
-(To be documented)
+### Authentication
+
+**Register**
+```
+POST /api/auth/register
+Body: { username, email, password }
+```
+
+**Login**
+```
+POST /api/auth/login
+Body: { email, password }
+```
+
+## Technologies
+
+- Node.js
+- Express
+- MongoDB + Mongoose
+- JWT (jsonwebtoken)
+- bcryptjs
