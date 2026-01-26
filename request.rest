@@ -1,0 +1,56 @@
+### BrickShare API Tests
+
+@baseUrl = http://localhost:3001
+@token = 
+@refreshToken = 
+@userId = 
+
+### Test server
+GET {{baseUrl}}/
+
+### Register new user
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "email": "test@example.com",
+  "password": "123456"
+}
+
+### Login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "123456"
+}
+
+### Refresh token
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### Get current user
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{token}}
+
+### Get user profile
+GET {{baseUrl}}/api/users/{{userId}}
+
+### Update user profile
+PUT {{baseUrl}}/api/users/{{userId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "username": "newusername",
+  "profileImage": "https://example.com/image.jpg"
+}
+
+### Get user posts
+GET {{baseUrl}}/api/users/{{userId}}/posts
