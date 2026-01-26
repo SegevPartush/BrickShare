@@ -54,3 +54,33 @@ Content-Type: application/json
 
 ### Get user posts
 GET {{baseUrl}}/api/users/{{userId}}/posts
+
+### Get all posts
+GET {{baseUrl}}/api/posts?page=1&limit=10
+
+### Get post by ID
+GET {{baseUrl}}/api/posts/{{postId}}
+
+### Create post
+POST {{baseUrl}}/api/posts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "text": "My first LEGO post!",
+  "image": "https://example.com/lego.jpg"
+}
+
+### Update post
+PUT {{baseUrl}}/api/posts/{{postId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "text": "Updated post text",
+  "image": "https://example.com/new-image.jpg"
+}
+
+### Delete post
+DELETE {{baseUrl}}/api/posts/{{postId}}
+Authorization: Bearer {{token}}
