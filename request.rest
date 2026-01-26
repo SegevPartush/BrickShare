@@ -84,3 +84,32 @@ Content-Type: application/json
 ### Delete post
 DELETE {{baseUrl}}/api/posts/{{postId}}
 Authorization: Bearer {{token}}
+
+### Like/Unlike post
+POST {{baseUrl}}/api/posts/{{postId}}/like
+Authorization: Bearer {{token}}
+
+### Get post comments
+GET {{baseUrl}}/api/comments/posts/{{postId}}/comments
+
+### Create comment
+POST {{baseUrl}}/api/comments/posts/{{postId}}/comments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "text": "Great LEGO set!"
+}
+
+### Update comment
+PUT {{baseUrl}}/api/comments/{{commentId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "text": "Updated comment text"
+}
+
+### Delete comment
+DELETE {{baseUrl}}/api/comments/{{commentId}}
+Authorization: Bearer {{token}}
