@@ -1,7 +1,8 @@
-const Comment = require('../models/comment.model');
-const Post = require('../models/post.model');
+import { Request, Response } from 'express';
+import Comment from '../models/comment.model';
+import Post from '../models/post.model';
 
-const getPostComments = async (req, res) => {
+export const getPostComments = async (req: Request, res: Response): Promise<Response | void> => {
   try {
     const comments = await Comment.find({ post: req.params.id })
       .populate('author', 'username profileImage')
@@ -9,11 +10,14 @@ const getPostComments = async (req, res) => {
 
     res.json({ comments });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to get comments', error: error.message });
+    res.status(500).json({
+      message: 'Failed to get comments',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 
-const createComment = async (req, res) => {
+export const createComment = async (req: Request, res: Response): Promise<Response | void> => {
   try {
     const { text } = req.body;
 
@@ -33,11 +37,14 @@ const createComment = async (req, res) => {
 
     res.status(201).json({ comment });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to create comment', error: error.message });
+    res.status(500).json({
+      message: 'Failed to create comment',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 
-const updateComment = async (req, res) => {
+export const updateComment = async (req: Request, res: Response): Promise<Response | void> => {
   try {
     const { text } = req.body;
 
@@ -56,11 +63,14 @@ const updateComment = async (req, res) => {
 
     res.json({ comment });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to update comment', error: error.message });
+    res.status(500).json({
+      message: 'Failed to update comment',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 
-const deleteComment = async (req, res) => {
+export const deleteComment = async (req: Request, res: Response): Promise<Response | void> => {
   try {
     const comment = await Comment.findById(req.params.id);
     if (!comment) {
@@ -75,13 +85,9 @@ const deleteComment = async (req, res) => {
 
     res.json({ message: 'Comment deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to delete comment', error: error.message });
+    res.status(500).json({
+      message: 'Failed to delete comment',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
-};
-
-module.exports = {
-  getPostComments,
-  createComment,
-  updateComment,
-  deleteComment
 };

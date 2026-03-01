@@ -41,3 +41,4 @@ backend/uploads/**/*
 !backend/uploads/**/.gitkeep
 backend/public/*
 !backend/public/.gitkeep
+backend/PROJECT_STATUS.md

@@ -1,7 +1,8 @@
-const User = require('../models/user.model');
-const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../utils/jwt.utils');
+import { Request, Response } from 'express';
+import User from '../models/user.model';
+import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.utils';
 
-const register = async (req, res) => {
+export const register = async (req: Request, res: Response): Promise<Response | void> => {
   try {
     const { username, email, password } = req.body;
 
@@ -13,8 +14,8 @@ const register = async (req, res) => {
     const user = new User({ username, email, password });
     await user.save();
 
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
+    const accessToken = generateAccessToken(user._id.toString());
+    const refreshToken = generateRefreshToken(user._id.toString());
 
     res.status(201).json({
       user: {
@@ -27,11 +28,14 @@ const register = async (req, res) => {
       refreshToken
     });
   } catch (error) {
-    res.status(500).json({ message: 'Registration failed', error: error.message });
+    res.status(500).json({
+      message: 'Registration failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 
-const login = async (req, res) => {
+export const login = async (req: Request, res: Response): Promise<Response | void> => {
   try {
     const { email, password } = req.body;
 
@@ -45,8 +49,8 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
+    const accessToken = generateAccessToken(user._id.toString());
+    const refreshToken = generateRefreshToken(user._id.toString());
 
     res.json({
       user: {
@@ -59,11 +63,14 @@ const login = async (req, res) => {
       refreshToken
     });
   } catch (error) {
-    res.status(500).json({ message: 'Login failed', error: error.message });
+    res.status(500).json({
+      message: 'Login failed',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 
-const refresh = async (req, res) => {
+export const refresh = async (req: Request, res: Response): Promise<Response | void> => {
   try {
     const { refreshToken } = req.body;
 
@@ -78,19 +85,19 @@ const refresh = async (req, res) => {
       return res.status(401).json({ message: 'User not found' });
     }
 
-    const newAccessToken = generateAccessToken(user._id);
-    const newRefreshToken = generateRefreshToken(user._id);
+    const newAccessToken = generateAccessToken(user._id.toString());
+    const newRefreshToken = generateRefreshToken(user._id.toString());
 
     res.json({
       accessToken: newAccessToken,
       refreshToken: newRefreshToken
     });
-  } catch (error) {
+  } catch {
     res.status(401).json({ message: 'Invalid refresh token' });
   }
 };
 
-const getMe = async (req, res) => {
+export const getMe = async (req: Request, res: Response): Promise<Response | void> => {
   try {
     const user = await User.findById(req.userId).select('-password');
     if (!user) {
@@ -106,13 +113,9 @@ const getMe = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to get user', error: error.message });
+    res.status(500).json({
+      message: 'Failed to get user',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
-};
-
-module.exports = {
-  register,
-  login,
-  refresh,
-  getMe
 };

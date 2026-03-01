@@ -89,6 +89,13 @@ Authorization: Bearer {{token}}
 POST {{baseUrl}}/api/posts/{{postId}}/like
 Authorization: Bearer {{token}}
 
+### AI Smart Search
+GET {{baseUrl}}/api/posts/search?q=star wars builds
+
+### AI Post Suggestions (requires auth)
+GET {{baseUrl}}/api/posts/suggestions
+Authorization: Bearer {{token}}
+
 ### Get post comments
 GET {{baseUrl}}/api/comments/posts/{{postId}}/comments
 

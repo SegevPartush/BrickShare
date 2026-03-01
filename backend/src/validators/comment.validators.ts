@@ -1,6 +1,6 @@
-const { body } = require('express-validator');
+import { body } from 'express-validator';
 
-const createCommentValidator = [
+export const createCommentValidator = [
   body('text')
     .trim()
     .notEmpty()
@@ -9,7 +9,7 @@ const createCommentValidator = [
     .withMessage('Text must be at most 1000 characters')
 ];
 
-const updateCommentValidator = [
+export const updateCommentValidator = [
   body('text')
     .trim()
     .notEmpty()
@@ -17,8 +17,3 @@ const updateCommentValidator = [
     .isLength({ max: 1000 })
     .withMessage('Text must be at most 1000 characters')
 ];
-
-module.exports = {
-  createCommentValidator,
-  updateCommentValidator
-};

@@ -1,6 +1,6 @@
-const { body } = require('express-validator');
+import { body } from 'express-validator';
 
-const createPostValidator = [
+export const createPostValidator = [
   body('text')
     .trim()
     .notEmpty()
@@ -9,15 +9,10 @@ const createPostValidator = [
     .withMessage('Text must be at most 5000 characters')
 ];
 
-const updatePostValidator = [
+export const updatePostValidator = [
   body('text')
     .optional()
     .trim()
     .isLength({ max: 5000 })
     .withMessage('Text must be at most 5000 characters')
 ];
-
-module.exports = {
-  createPostValidator,
-  updatePostValidator
-};

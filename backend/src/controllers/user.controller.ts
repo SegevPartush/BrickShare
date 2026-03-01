@@ -1,7 +1,8 @@
-const User = require('../models/user.model');
-const Post = require('../models/post.model');
+import { Request, Response } from 'express';
+import User from '../models/user.model';
+import Post from '../models/post.model';
 
-const getUserProfile = async (req, res) => {
+export const getUserProfile = async (req: Request, res: Response): Promise<Response | void> => {
   try {
     const user = await User.findById(req.params.id).select('-password');
     if (!user) {
@@ -18,29 +19,31 @@ const getUserProfile = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to get user profile', error: error.message });
+    res.status(500).json({
+      message: 'Failed to get user profile',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 
-const updateUserProfile = async (req, res) => {
+export const updateUserProfile = async (req: Request, res: Response): Promise<Response | void> => {
   try {
     if (req.userId !== req.params.id) {
       return res.status(403).json({ message: 'You can only update your own profile' });
     }
 
     const { username } = req.body;
-    const updateData = {};
+    const updateData: { username?: string; profileImage?: string } = {};
 
     if (username) updateData.username = username;
     if (req.file) {
       updateData.profileImage = `/uploads/profiles/${req.file.filename}`;
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    ).select('-password');
+    const user = await User.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true
+    }).select('-password');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -55,11 +58,14 @@ const updateUserProfile = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to update profile', error: error.message });
+    res.status(500).json({
+      message: 'Failed to update profile',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 
-const getUserPosts = async (req, res) => {
+export const getUserPosts = async (req: Request, res: Response): Promise<Response | void> => {
   try {
     const posts = await Post.find({ author: req.params.id })
       .populate('author', 'username profileImage')
@@ -67,12 +73,9 @@ const getUserPosts = async (req, res) => {
 
     res.json({ posts });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to get user posts', error: error.message });
+    res.status(500).json({
+      message: 'Failed to get user posts',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
-};
-
-module.exports = {
-  getUserProfile,
-  updateUserProfile,
-  getUserPosts
 };
