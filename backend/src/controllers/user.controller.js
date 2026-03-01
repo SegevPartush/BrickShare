@@ -28,11 +28,13 @@ const updateUserProfile = async (req, res) => {
       return res.status(403).json({ message: 'You can only update your own profile' });
     }
 
-    const { username, profileImage } = req.body;
+    const { username } = req.body;
     const updateData = {};
 
     if (username) updateData.username = username;
-    if (profileImage !== undefined) updateData.profileImage = profileImage;
+    if (req.file) {
+      updateData.profileImage = `/uploads/profiles/${req.file.filename}`;
+    }
 
     const user = await User.findByIdAndUpdate(
       req.params.id,

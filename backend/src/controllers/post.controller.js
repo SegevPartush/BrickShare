@@ -61,11 +61,12 @@ const getPostById = async (req, res) => {
 
 const createPost = async (req, res) => {
   try {
-    const { text, image } = req.body;
+    const { text } = req.body;
+    const image = req.file ? `/uploads/posts/${req.file.filename}` : '';
 
     const post = new Post({
       text,
-      image: image || '',
+      image,
       author: req.userId
     });
 
@@ -80,7 +81,7 @@ const createPost = async (req, res) => {
 
 const updatePost = async (req, res) => {
   try {
-    const { text, image } = req.body;
+    const { text } = req.body;
 
     const post = await Post.findById(req.params.id);
     if (!post) {
@@ -92,7 +93,9 @@ const updatePost = async (req, res) => {
     }
 
     if (text !== undefined) post.text = text;
-    if (image !== undefined) post.image = image;
+    if (req.file) {
+      post.image = `/uploads/posts/${req.file.filename}`;
+    }
 
     await post.save();
     await post.populate('author', 'username profileImage');

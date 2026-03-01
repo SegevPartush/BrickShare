@@ -37,3 +37,7 @@ frontend/.env.production.local
 # Backend specific
 backend/node_modules/
 backend/.env
+backend/uploads/**/*
+!backend/uploads/**/.gitkeep
+backend/public/*
+!backend/public/.gitkeep
