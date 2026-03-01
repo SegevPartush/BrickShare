@@ -59,4 +59,78 @@ describe('Posts', () => {
 
     expect(res.status).toBe(401);
   });
+
+  test('get all posts with pagination', async () => {
+    await request(app)
+      .post('/api/posts')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'Post 1' });
+
+    await request(app)
+      .post('/api/posts')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'Post 2' });
+
+    const res = await request(app)
+      .get('/api/posts?page=1&limit=10');
+
+    expect(res.status).toBe(200);
+    expect(res.body.posts.length).toBe(2);
+    expect(res.body.totalPosts).toBe(2);
+  });
+
+  test('update post', async () => {
+    const createRes = await request(app)
+      .post('/api/posts')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'Original' });
+
+    const postId = createRes.body.post._id;
+
+    const res = await request(app)
+      .put(`/api/posts/${postId}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'Updated' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.post.text).toBe('Updated');
+  });
+
+  test('delete post', async () => {
+    const createRes = await request(app)
+      .post('/api/posts')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'To delete' });
+
+    const postId = createRes.body.post._id;
+
+    const res = await request(app)
+      .delete(`/api/posts/${postId}`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+  });
+
+  test('like and unlike post', async () => {
+    const createRes = await request(app)
+      .post('/api/posts')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ text: 'Test post' });
+
+    const postId = createRes.body.post._id;
+
+    const likeRes = await request(app)
+      .post(`/api/posts/${postId}/like`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(likeRes.status).toBe(200);
+    expect(likeRes.body.liked).toBe(true);
+
+    const unlikeRes = await request(app)
+      .post(`/api/posts/${postId}/like`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(unlikeRes.status).toBe(200);
+    expect(unlikeRes.body.liked).toBe(false);
+  });
 });
