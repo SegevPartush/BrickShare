@@ -1,0 +1,154 @@
+### BrickShare API Tests
+
+@baseUrl = http://localhost:3001
+@token = 
+@refreshToken = 
+@userId = 
+
+### Test server
+GET {{baseUrl}}/
+
+### Register new user
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "username": "testuser",
+  "email": "test@example.com",
+  "password": "123456"
+}
+
+### Login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "123456"
+}
+
+### Refresh token
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### Get current user
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{token}}
+
+### Get user profile
+GET {{baseUrl}}/api/users/{{userId}}
+
+### Update user profile
+PUT {{baseUrl}}/api/users/{{userId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "username": "newusername",
+  "profileImage": "https://example.com/image.jpg"
+}
+
+### Get user posts
+GET {{baseUrl}}/api/users/{{userId}}/posts
+
+### Get all posts
+GET {{baseUrl}}/api/posts?page=1&limit=10
+
+### Get post by ID
+GET {{baseUrl}}/api/posts/{{postId}}
+
+### Create post
+POST {{baseUrl}}/api/posts
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "text": "My first LEGO post!",
+  "image": "https://example.com/lego.jpg"
+}
+
+### Update post
+PUT {{baseUrl}}/api/posts/{{postId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "text": "Updated post text",
+  "image": "https://example.com/new-image.jpg"
+}
+
+### Delete post
+DELETE {{baseUrl}}/api/posts/{{postId}}
+Authorization: Bearer {{token}}
+
+### Like/Unlike post
+POST {{baseUrl}}/api/posts/{{postId}}/like
+Authorization: Bearer {{token}}
+
+### AI Smart Search
+GET {{baseUrl}}/api/posts/search?q=star wars builds
+
+### AI Post Suggestions (requires auth)
+GET {{baseUrl}}/api/posts/suggestions
+Authorization: Bearer {{token}}
+
+### Get post comments
+GET {{baseUrl}}/api/comments/posts/{{postId}}/comments
+
+### Create comment
+POST {{baseUrl}}/api/comments/posts/{{postId}}/comments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "text": "Great LEGO set!"
+}
+
+### Update comment
+PUT {{baseUrl}}/api/comments/{{commentId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "text": "Updated comment text"
+}
+
+### Delete comment
+DELETE {{baseUrl}}/api/comments/{{commentId}}
+Authorization: Bearer {{token}}
+
+### Upload post image (multipart/form-data)
+POST {{baseUrl}}/api/posts
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="text"
+
+My LEGO post with image!
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="image"; filename="lego.jpg"
+Content-Type: image/jpeg
+
+< ./path/to/image.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+### Upload profile image (multipart/form-data)
+PUT {{baseUrl}}/api/users/{{userId}}
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="username"
+
+newusername
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="profileImage"; filename="profile.jpg"
+Content-Type: image/jpeg
+
+< ./path/to/profile.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
