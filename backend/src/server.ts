@@ -4,7 +4,6 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
-
 import { swaggerSpec } from './config/swagger';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
