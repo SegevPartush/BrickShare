@@ -2,8 +2,11 @@
 node_modules/
 package-lock.json
 
-# Environment variables
+# Environment variables (never commit secrets)
 .env
+.env.*
+!.env.example
+!**/.env.example
 .env.local
 .env.*.local
 
@@ -29,12 +32,15 @@ build/
 
 # Frontend specific
 frontend/build/
+frontend/.env
 frontend/.env.local
 frontend/.env.development.local
 frontend/.env.test.local
+frontend/.env.production
 frontend/.env.production.local
 
 # Backend specific
+backend/backend/
 backend/node_modules/
 backend/.env
 backend/uploads/**/*
