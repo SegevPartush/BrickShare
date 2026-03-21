@@ -1,0 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --primary: #1d9bf0;
+  --primary-hover: #1a8cd8;
+  --secondary: #38bdf8;
+  --accent-blue: #0ea5e9;
+  --accent-teal: #14b8a6;
+  --bg: #000000;
+  --surface: #16181c;
+  --surface-hover: #1e2025;
+  --border: #2f3336;
+  --text-primary: #e7e9ea;
+  --text-secondary: #71767b;
+  --fg: var(--text-primary);
+  --muted: var(--text-secondary);
+  --hover-overlay: rgba(29, 155, 240, 0.1);
+  --radius: 12px;
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --accent: var(--primary);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Assistant', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+::selection {
+  background: rgba(29, 155, 240, 0.25);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Avatar square corners */
+.avatar,
+[class*="avatar"],
+img[alt="Avatar"],
+img[alt="Profile"] {
+  border-radius: 8px !important;
+}
+
+/* Active tab indicator */
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #1d9bf0 0%, #38bdf8 100%);
+  border-radius: 4px 4px 0 0;
+}
+
+/* Button gradients */
+.btn-gradient {
+  background: linear-gradient(135deg, #1d9bf0 0%, #38bdf8 100%);
+  box-shadow: 0 4px 12px rgba(29, 155, 240, 0.3);
+}
+
+.btn-gradient:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(29, 155, 240, 0.4);
+}
