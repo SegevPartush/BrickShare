@@ -248,7 +248,7 @@ export default function MessagesPage() {
                   const isMe = msg.senderId === currentUserId;
                   return (
                     <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[70%] px-4 py-2.5 rounded-2xl text-[15px] leading-relaxed ${
+                      <div dir="auto" className={`max-w-[70%] px-4 py-2.5 rounded-2xl text-[15px] leading-relaxed ${
                         isMe
                           ? 'bg-gradient-to-r from-[#1d9bf0] to-[#38bdf8] text-white rounded-br-sm'
                           : 'bg-[#202327] text-white rounded-bl-sm'
@@ -275,7 +275,7 @@ export default function MessagesPage() {
                   onKeyDown={e => e.key === 'Enter' && handleSend()}
                   placeholder="כתוב הודעה..."
                   className="flex-1 bg-[#202327] border border-[#2f3336] rounded-full px-4 py-2.5 text-[15px] outline-none focus:border-[#1d9bf0] transition-colors text-white placeholder-[#71767b]"
-                  dir="rtl"
+                  dir="auto"
                 />
                 <button
                   onClick={handleSend}

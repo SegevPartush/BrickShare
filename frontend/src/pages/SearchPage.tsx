@@ -150,7 +150,7 @@ export default function SearchPage() {
               onChange={e => setQuery(e.target.value)}
               placeholder="Search people..."
               className="w-full bg-[#202327] border border-[#2f3336] rounded-full py-2.5 pr-10 pl-4 text-[15px] outline-none focus:border-[#1d9bf0] focus:bg-transparent transition-colors text-white placeholder-[#71767b]"
-              dir="rtl"
+              dir="auto"
             />
 
             {/* כפתור ניקוי */}

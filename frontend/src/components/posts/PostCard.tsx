@@ -290,6 +290,7 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
                   value={newComment}
                   onChange={e => setNewComment(e.target.value)}
                   placeholder="Add a comment..."
+                  dir="auto"
                   className="flex-1 bg-transparent text-[14px] text-white outline-none placeholder-[#71767b]"
                 />
                 {newComment.trim() && (

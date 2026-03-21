@@ -140,10 +140,11 @@ export default function AIChatWidget() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3" dir="rtl">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3" dir="auto">
           {messages.map((msg, idx) => (
             <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-start' : 'justify-end'}`}>
               <div
+                dir="auto"
                 className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed ${
                   msg.role === 'user' ? 'text-white' : 'bg-[#16181c] text-[#e7e9ea] border border-[#2f3336]'
                 }`}
@@ -158,7 +159,7 @@ export default function AIChatWidget() {
         </div>
 
         {showQuickActions && (
-          <div className="px-4 pb-3 space-y-1 flex-shrink-0" dir="rtl">
+          <div className="px-4 pb-3 space-y-1 flex-shrink-0" dir="auto">
             <div className="text-xs text-[#71767b] mb-1">שאלות מהירות:</div>
             {QUICK_ACTIONS.map((action) => (
               <button key={action} onClick={() => sendMessage(action)} className="w-full text-right text-xs text-[#1d9bf0] hover:bg-[#1d9bf0]/10 px-3 py-2 rounded-lg transition-colors border border-[#2f3336]">
@@ -168,7 +169,7 @@ export default function AIChatWidget() {
           </div>
         )}
 
-        <div className="p-3 border-t border-[#2f3336] flex-shrink-0" dir="rtl">
+        <div className="p-3 border-t border-[#2f3336] flex-shrink-0" dir="auto">
           <div className="flex gap-2 items-center">
             <input
               type="text"
@@ -177,6 +178,7 @@ export default function AIChatWidget() {
               onKeyDown={handleKeyDown}
               placeholder="שאל משהו על LEGO..."
               disabled={loading}
+              dir="auto"
               className="flex-1 bg-[#16181c] border border-[#2f3336] rounded-full px-4 py-2 text-sm text-[#e7e9ea] placeholder-[#71767b] outline-none focus:border-[#1d9bf0] transition-colors"
             />
             <button
