@@ -1,10 +1,73 @@
 import { Router } from 'express';
-import { register, login, refresh, getMe } from '../controllers/auth.controller';
+import passport from 'passport';
+import { register, login, refresh, getMe, oauthCallback } from '../controllers/auth.controller';
 import authMiddleware from '../middleware/auth.middleware';
 import validate from '../middleware/validate.middleware';
 import { registerValidator, loginValidator, refreshValidator } from '../validators/auth.validators';
 
 const router = Router();
+
+/**
+ * @swagger
+ * /api/auth/google:
+ *   get:
+ *     summary: Start Google OAuth login
+ *     tags: [Authentication]
+ *     responses:
+ *       302:
+ *         description: Redirects to Google consent screen
+ */
+router.get(
+  '/google',
+  passport.authenticate('google', { scope: ['profile', 'email'], session: false })
+);
+
+/**
+ * @swagger
+ * /api/auth/google/callback:
+ *   get:
+ *     summary: Google OAuth callback (redirect with tokens)
+ *     tags: [Authentication]
+ *     responses:
+ *       302:
+ *         description: Redirects to frontend with accessToken and refreshToken in query
+ */
+router.get(
+  '/google/callback',
+  passport.authenticate('google', { session: false }),
+  oauthCallback
+);
+
+/**
+ * @swagger
+ * /api/auth/facebook:
+ *   get:
+ *     summary: Start Facebook OAuth login
+ *     tags: [Authentication]
+ *     responses:
+ *       302:
+ *         description: Redirects to Facebook consent screen
+ */
+router.get(
+  '/facebook',
+  passport.authenticate('facebook', { scope: ['email'], session: false })
+);
+
+/**
+ * @swagger
+ * /api/auth/facebook/callback:
+ *   get:
+ *     summary: Facebook OAuth callback (redirect with tokens)
+ *     tags: [Authentication]
+ *     responses:
+ *       302:
+ *         description: Redirects to frontend with accessToken and refreshToken in query
+ */
+router.get(
+  '/facebook/callback',
+  passport.authenticate('facebook', { session: false }),
+  oauthCallback
+);
 
 /**
  * @swagger

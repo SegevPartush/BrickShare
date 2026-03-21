@@ -1,9 +1,15 @@
-### BrickShare API Tests
+### BrickShare API Tests (בלי פרונט)
+# איך לבדוק: הרץ את הבקאנד (npm run dev ב-backend), ואז שלח בקשות מהקובץ הזה.
+# ב-VS Code: התקן את ההרחבה "REST Client" (או "REST Client" / Huachao), אחר כך לחץ "Send Request" מעל כל ###.
+# אחרי Login או Register: העתק מה-response את accessToken, refreshToken ו-user.id והדבק למטה ב-@token, @refreshToken, @userId.
+# פורט: אם הבקאנד רץ על 3000, שנה ל-@baseUrl = http://localhost:3000
 
 @baseUrl = http://localhost:3001
 @token = 
 @refreshToken = 
 @userId = 
+@postId = 
+@commentId = 
 
 ### Test server
 GET {{baseUrl}}/
@@ -120,6 +126,13 @@ Content-Type: application/json
 ### Delete comment
 DELETE {{baseUrl}}/api/comments/{{commentId}}
 Authorization: Bearer {{token}}
+
+### --- OAuth (Google/Facebook) ---
+# אי אפשר לבדוק רק מ-REST: צריך דפדפן. פתח בדפדפן:
+#   Google:  GET {{baseUrl}}/api/auth/google
+#   Facebook: GET {{baseUrl}}/api/auth/facebook
+# אחרי האישור אתם מועברים ל-FRONTEND_URL/oauth-callback?accessToken=...&refreshToken=...&userId=...
+# בלי פרונט: הגדר FRONTEND_URL ל-http://localhost:3001 ופתח דף שמציג את ה-URL (או השתמש ב-Swagger רק לראות שהנתיבים קיימים).
 
 ### Upload post image (multipart/form-data)
 POST {{baseUrl}}/api/posts

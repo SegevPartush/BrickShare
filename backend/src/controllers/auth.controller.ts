@@ -1,6 +1,20 @@
+import '../types/express-augment';
 import { Request, Response } from 'express';
-import User from '../models/user.model';
+import User, { IUser } from '../models/user.model';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.utils';
+
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+function oauthRedirect(req: Request, res: Response, user: IUser): void {
+  const accessToken = generateAccessToken(user._id.toString());
+  const refreshToken = generateRefreshToken(user._id.toString());
+  const params = new URLSearchParams({
+    accessToken,
+    refreshToken,
+    userId: user._id.toString()
+  });
+  res.redirect(`${FRONTEND_URL}/oauth-callback?${params.toString()}`);
+}
 
 export const register = async (req: Request, res: Response): Promise<Response | void> => {
   try {
@@ -118,4 +132,14 @@ export const getMe = async (req: Request, res: Response): Promise<Response | voi
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
+};
+
+export const oauthCallback = (req: Request, res: Response): void => {
+  const user = req.user as IUser | undefined;
+  if (!user) {
+    const err = new URLSearchParams({ error: 'oauth_failed' });
+    res.redirect(`${FRONTEND_URL}/login?${err.toString()}`);
+    return;
+  }
+  oauthRedirect(req, res, user);
 };

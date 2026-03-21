@@ -4,8 +4,12 @@ import bcrypt from 'bcryptjs';
 export interface IUser extends Document {
   username: string;
   email: string;
-  password: string;
+  password?: string;
   profileImage: string;
+  googleId?: string;
+  facebookId?: string;
+  following: mongoose.Types.ObjectId[];
+  followers: mongoose.Types.ObjectId[];
   createdAt: Date;
   comparePassword(password: string): Promise<boolean>;
 }
@@ -26,13 +30,39 @@ const userSchema = new Schema<IUser>({
   },
   password: {
     type: String,
-    required: true,
+    required: false,
     minlength: 6
   },
   profileImage: {
     type: String,
     default: ''
   },
+  googleId: {
+    type: String,
+    required: false,
+    sparse: true,
+    unique: true
+  },
+  facebookId: {
+    type: String,
+    required: false,
+    sparse: true,
+    unique: true
+  },
+  following: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: []
+    }
+  ],
+  followers: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: []
+    }
+  ],
   createdAt: {
     type: Date,
     default: Date.now
@@ -40,12 +70,13 @@ const userSchema = new Schema<IUser>({
 });
 
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password') || !this.password) return next();
   this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 
 userSchema.methods.comparePassword = async function (password: string): Promise<boolean> {
+  if (!this.password) return false;
   return await bcrypt.compare(password, this.password);
 };
 

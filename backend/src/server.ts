@@ -1,20 +1,27 @@
 require('dotenv').config();
+import './types/express-augment';
 import path from 'path';
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
+import passport from 'passport';
 import swaggerUi from 'swagger-ui-express';
+
+import './config/passport';
 import { swaggerSpec } from './config/swagger';
 import authRoutes from './routes/auth.routes';
 import userRoutes from './routes/user.routes';
 import postRoutes from './routes/post.routes';
 import commentRoutes from './routes/comment.routes';
+import followRoutes from './routes/follow.routes';
+import aiRoutes from './routes/ai.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use(passport.initialize());
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/uploads', express.static('uploads'));
 
@@ -22,6 +29,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/comments', commentRoutes);
+app.use('/api/follow', followRoutes);
+app.use('/api/ai', aiRoutes);
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
