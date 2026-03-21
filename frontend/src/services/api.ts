@@ -108,3 +108,17 @@ export async function getFollowing(payload: { accessToken: string; targetUserId:
   });
   return res.data.following;
 }
+
+export async function getComments(postId: string) {
+  const res = await api.get(`/api/comments/posts/${postId}/comments`);
+  return res.data.comments || [];
+}
+
+export async function addComment(payload: { accessToken: string; postId: string; text: string }) {
+  const res = await api.post(
+    `/api/comments/posts/${payload.postId}/comments`,
+    { text: payload.text },
+    { headers: { Authorization: `Bearer ${payload.accessToken}` } }
+  );
+  return res.data.comment;
+}
