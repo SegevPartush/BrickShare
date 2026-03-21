@@ -310,11 +310,6 @@ export default function FeedPage() {
       <div>
         {/* Sticky header with tabs */}
         <div className="sticky top-0 bg-black/85 backdrop-blur-xl border-b border-[#2f3336] z-10">
-          <div className="px-4 pt-3 pb-0">
-            <div className="font-extrabold text-[20px]">BrickShare</div>
-            <div className="text-[13px] text-[#71767b] mt-0.5 mb-3">Building Dreams Together</div>
-          </div>
-
           {/* Tabs */}
           <div className="flex">
             {([
