@@ -8,7 +8,7 @@ const USER_KEY = 'brickshare_user';
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children?: React.ReactNode }) {
   const [accessToken, setAccessToken] = useState('');
   const [refreshToken, setRefreshToken] = useState('');
   const [user, setUser] = useState<User | null>(null);
