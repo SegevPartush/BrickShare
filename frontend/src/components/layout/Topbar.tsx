@@ -1,14 +1,17 @@
 import React from 'react';
 import Logo from './Logo';
 
-export default function Topbar({ title, subtitle, right, onLogoClick }) {
+interface TopbarProps {
+  title?: string;
+  subtitle?: string;
+  right?: React.ReactNode;
+  onLogoClick?: () => void;
+}
+
+export default function Topbar({ right, onLogoClick }: TopbarProps) {
   return (
     <div className="sticky top-0 z-30 bg-black border-b border-[#2f3336]">
-      <div
-        className="flex items-center px-6 py-3 gap-4"
-        style={{ direction: 'rtl' }}
-      >
-        {/* Logo on the RIGHT (first in RTL flow) */}
+      <div className="flex items-center px-6 py-3 gap-4" style={{ direction: 'rtl' }}>
         <button
           type="button"
           onClick={onLogoClick}
@@ -17,11 +20,7 @@ export default function Topbar({ title, subtitle, right, onLogoClick }) {
         >
           <Logo size={36} />
         </button>
-
-        {/* Rest of the topbar fills the remaining space */}
-        <div className="flex-1" style={{ direction: 'ltr' }}>
-          {right}
-        </div>
+        <div className="flex-1" style={{ direction: 'ltr' }}>{right}</div>
       </div>
     </div>
   );

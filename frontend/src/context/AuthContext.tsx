@@ -1,23 +1,23 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import * as api from '../services/api';
+import { User, AuthContextType } from '../types';
 
 const ACCESS_KEY = 'brickshare_accessToken';
 const REFRESH_KEY = 'brickshare_refreshToken';
 const USER_KEY = 'brickshare_user';
 
-const AuthContext = createContext(null);
+const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }) {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [accessToken, setAccessToken] = useState('');
   const [refreshToken, setRefreshToken] = useState('');
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const storedAccess = localStorage.getItem(ACCESS_KEY) || '';
     const storedRefresh = localStorage.getItem(REFRESH_KEY) || '';
     const storedUser = localStorage.getItem(USER_KEY);
-
     setAccessToken(storedAccess);
     setRefreshToken(storedRefresh);
     setUser(storedUser ? JSON.parse(storedUser) : null);
@@ -25,7 +25,6 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    // Best-effort: refresh user data on app start.
     async function loadMe() {
       if (!accessToken) return;
       try {
@@ -33,7 +32,7 @@ export function AuthProvider({ children }) {
         setUser(me);
         localStorage.setItem(USER_KEY, JSON.stringify(me));
       } catch {
-        // If token is invalid, keep UI functional; user can login again.
+        // token invalid – keep UI functional
       }
     }
     loadMe();
@@ -44,7 +43,7 @@ export function AuthProvider({ children }) {
     return { Authorization: `Bearer ${accessToken}` };
   }, [accessToken]);
 
-  async function register(payload) {
+  async function register(payload: { username: string; email: string; password: string }) {
     const data = await api.register(payload);
     setAccessToken(data.accessToken);
     setRefreshToken(data.refreshToken);
@@ -55,7 +54,7 @@ export function AuthProvider({ children }) {
     return data.user;
   }
 
-  async function login(payload) {
+  async function login(payload: { email: string; password: string }) {
     const data = await api.login(payload);
     setAccessToken(data.accessToken);
     setRefreshToken(data.refreshToken);
@@ -66,8 +65,8 @@ export function AuthProvider({ children }) {
     return data.user;
   }
 
-  function setOAuthTokens({ accessToken: at, refreshToken: rt, userId }) {
-    const newUser = userId ? { id: userId } : null;
+  function setOAuthTokens({ accessToken: at, refreshToken: rt, userId }: { accessToken: string; refreshToken: string; userId: string }) {
+    const newUser: User = userId ? { id: userId, email: '' } : { email: '' };
     setAccessToken(at);
     setRefreshToken(rt);
     setUser(newUser);
@@ -95,25 +94,16 @@ export function AuthProvider({ children }) {
     localStorage.removeItem(USER_KEY);
   }
 
-  const value = {
-    accessToken,
-    refreshToken,
-    user,
-    loading,
-    authHeaders,
-    register,
-    login,
-    refresh,
-    logout,
-    setOAuthTokens
+  const value: AuthContextType = {
+    accessToken, refreshToken, user, loading, authHeaders,
+    register, login, refresh, logout, setOAuthTokens
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextType {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }
-
