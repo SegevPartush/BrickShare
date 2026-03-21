@@ -2,9 +2,9 @@ import React from 'react';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant;
-}
+};
 
 const base = 'inline-flex items-center justify-center gap-2 rounded-lg px-12 py-8 text-body font-semibold transition focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed';
 

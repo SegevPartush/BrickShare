@@ -1,22 +1,26 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import ShellLayout from '../components/layout/ShellLayout';
-import Button from '../components/ui/Button';
-import Input from '../components/ui/Input';
-import Modal from '../components/ui/Modal';
 import PostCard from '../components/posts/PostCard';
 import Card from '../components/ui/Card';
-import RarityBadge from '../components/ui/RarityBadge';
 import Avatar from '../components/ui/Avatar';
 import { useAuth } from '../context/AuthContext';
 import { Post } from '../types';
 import * as api from '../services/api';
 
-function SkeletonLine({ width = '100%' }: { width?: string }) {
-  return <div className="h-4 rounded-lg bg-white/5 animate-pulse" style={{ width }} />;
-}
-
-function formatMoney(n: number): string {
-  return n.toLocaleString(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+// קומפוננט שלד לטעינה
+function SkeletonPost() {
+  return (
+    <div className="border-b border-[#2f3336] p-4 animate-pulse">
+      <div className="flex gap-3">
+        <div className="w-12 h-12 rounded-full bg-white/10 shrink-0" />
+        <div className="flex-1 space-y-3">
+          <div className="h-4 bg-white/10 rounded w-1/3" />
+          <div className="h-4 bg-white/10 rounded w-full" />
+          <div className="h-4 bg-white/10 rounded w-2/3" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function FeedPage() {
@@ -24,338 +28,330 @@ export default function FeedPage() {
   const currentUserId = user?.id || user?._id || '';
   const isSignedIn = Boolean(accessToken);
 
-  const collectionsDemo = useMemo(() => [
-    { id: 'col-1', name: 'Star Wars UCS', rarity: 'Legendary', sets: 18, value: 12450, note: 'Millennium Falcon, AT-AT, X-Wing' },
-    { id: 'col-2', name: 'LEGO Technic', rarity: 'Epic', sets: 12, value: 8320, note: 'Ferrari, Bugatti, Lamborghini' },
-    { id: 'col-3', name: 'Architecture', rarity: 'Rare', sets: 25, value: 4150, note: 'Tokyo, Paris, New York' },
-  ], []);
+  // טאב פעיל - הפיד או בניות מומלצות
+  const [activeTab, setActiveTab] = useState<'feed' | 'recommended'>('feed');
 
-  const rareSetsDemo = useMemo(() => [
-    { id: 'r-1', title: 'Millennium Falcon UCS', rarity: 'Legendary' },
-    { id: 'r-2', title: 'Ferrari Daytona SP3', rarity: 'Epic' },
-    { id: 'r-3', title: 'Tokyo Skyline', rarity: 'Rare' },
-  ], []);
-
-  const recentActivityDemo = useMemo(() => [
-    { id: 'a-1', text: 'החלפת חלקים עם @sarah_builds', time: 'לפני שעתיים' },
-    { id: 'a-2', text: '@dani_technic אהב את הבניה שלך', time: 'אתמול' },
-    { id: 'a-3', text: 'סט חדש הוסף לרשימת המשאלות', time: 'לפני 3 ימים' },
-  ], []);
-
-  const tradesDemo = useMemo(() => [
-    { id: 't-1', with: '@sarah_builds', offer: 'חלקי Technic', request: 'Star Wars Minifigs', status: 'פתוח' },
-    { id: 't-2', with: '@michal_moc', offer: 'Instructions מקוריות', request: 'חלקים נדירים', status: 'ממתין' },
-  ], []);
-
-  const demoPosts: Post[] = useMemo(() => [
-    { _id: 'demo-1', text: 'סיימתי את ה-Millennium Falcon! 7541 חלקים ו-18 שעות בניה 🚀', image: '', createdAt: new Date(Date.now() - 10800000).toISOString(), author: { username: 'sarah_builds', email: 'sarah@demo.local' }, likes: [], commentCount: 23 },
-    { _id: 'demo-2', text: 'החלפת חלקים עם מישהו? מחפש חלק #32316 בצהוב 🔵', image: '', createdAt: new Date(Date.now() - 21600000).toISOString(), author: { username: 'dani_technic', email: 'dani@demo.local' }, likes: [], commentCount: 18 },
-  ], []);
-
-  const [activeTab, setActiveTab] = useState<'collections' | 'activity'>('collections');
-  const [postsState, setPostsState] = useState({ items: demoPosts, currentPage: 1, totalPages: 1 });
+  // פוסטים וטעינה
+  const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState('');
-  const [searchQ, setSearchQ] = useState('');
-  const [searching, setSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<Post[]>([]);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newText, setNewText] = useState('');
-  const [newImage, setNewImage] = useState<File | null>(null);
+
+  // יצירת פוסט חדש
+  const [newPostText, setNewPostText] = useState('');
+  const [newPostImage, setNewPostImage] = useState<File | null>(null);
   const [createBusy, setCreateBusy] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [suggestionsBusy, setSuggestionsBusy] = useState(false);
+
+  // משתמשים מומלצים לעקוב
   const [suggestedUsers, setSuggestedUsers] = useState<any[]>([]);
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
 
-  async function loadActivity({ page = 1, limit = 10 } = {}) {
+  // טעינת פוסטים מהשרת
+  async function loadPosts() {
     setLoading(true);
-    setLoadError('');
     try {
-      const data = await api.getPosts({ page, limit });
-      setPostsState({ items: data.posts || [], currentPage: data.currentPage || page, totalPages: data.totalPages || 1 });
-      setSearchResults([]);
-      setSearching(false);
-    } catch (e: any) {
-      setLoadError(e?.response?.data?.message || e?.message || 'Failed to load posts');
+      const data = await api.getPosts({ page: 1, limit: 20 });
+      setPosts(data.posts || []);
+    } catch (e) {
+      console.error('שגיאה בטעינת פוסטים:', e);
     } finally {
       setLoading(false);
     }
   }
 
-  async function runSearch(q: string) {
-    if (!q.trim()) return;
-    setSearching(true);
-    setSearchResults([]);
-    try {
-      const data = await api.searchPosts(q.trim());
-      setSearchResults(data.results || []);
-    } catch { setSearchResults([]); }
-    finally { setSearching(false); }
-  }
-
-  useEffect(() => { loadActivity(); }, []);
-
+  // טעינה ראשונית
   useEffect(() => {
-    if (!accessToken) return;
-    setSuggestionsBusy(true);
-    api.getSuggestions(accessToken)
-      .then((items) => setSuggestions(items || []))
-      .catch(() => setSuggestions([]))
-      .finally(() => setSuggestionsBusy(false));
-  }, [accessToken]);
+    loadPosts();
+  }, []);
 
+  // טעינת משתמשים מומלצים
   useEffect(() => {
     api.getSuggestedUsers({ accessToken, limit: 3 })
       .then(setSuggestedUsers)
       .catch(() => setSuggestedUsers([]));
   }, [accessToken]);
 
-  async function onToggleFollow(targetUserId: string) {
-    if (!accessToken) return;
-    try {
-      const data = await api.toggleFollow({ accessToken, targetUserId });
-      setFollowingIds((prev) => {
-        const next = new Set(prev);
-        if (data.following) next.add(targetUserId); else next.delete(targetUserId);
-        return next;
-      });
-    } catch { /* silent */ }
-  }
-
-  async function onCreatePost() {
-    if (!accessToken || !newText.trim()) return;
+  // פרסום פוסט חדש
+  async function handleCreatePost() {
+    if (!newPostText.trim() || !accessToken) return;
     setCreateBusy(true);
     try {
-      await api.createPost({ accessToken, text: newText.trim(), imageFile: newImage });
-      setCreateOpen(false);
-      setNewText('');
-      setNewImage(null);
-      await loadActivity();
-    } finally { setCreateBusy(false); }
+      await api.createPost({ accessToken, text: newPostText.trim(), imageFile: newPostImage });
+      setNewPostText('');
+      setNewPostImage(null);
+      await loadPosts();
+    } catch (e) {
+      console.error('שגיאה ביצירת פוסט:', e);
+    } finally {
+      setCreateBusy(false);
+    }
   }
 
-  async function onToggleLike(postId: string) {
+  // לייק / ביטול לייק
+  async function handleLike(postId: string) {
     if (!accessToken) return;
     try {
       const data = await api.toggleLike({ accessToken, postId });
       const updated = data.post;
-      setPostsState((prev) => ({ ...prev, items: prev.items.map((p) => p._id === updated._id ? updated : p) }));
-      setSearchResults((prev) => prev.map((p) => p._id === updated._id ? updated : p));
-    } catch { /* silent */ }
+      setPosts(prev => prev.map(p => p._id === updated._id ? updated : p));
+    } catch (e) {
+      console.error('שגיאה בלייק:', e);
+    }
   }
 
-  const displayedActivity = searching ? searchResults : postsState.items;
+  // עקוב / הפסק לעקוב
+  async function handleFollow(targetUserId: string) {
+    if (!accessToken) return;
+    try {
+      const data = await api.toggleFollow({ accessToken, targetUserId });
+      setFollowingIds(prev => {
+        const next = new Set(prev);
+        if (data.following) next.add(targetUserId); else next.delete(targetUserId);
+        return next;
+      });
+    } catch { /* שקט */ }
+  }
 
+  // פוסטים לדוגמה כשאין פוסטים אמיתיים
+  const demoPosts: Post[] = useMemo(() => [
+    {
+      _id: 'demo-1',
+      text: 'סיימתי את ה-Millennium Falcon UCS! 7,541 חלקים ו-18 שעות בניה 🚀 הכי מרשים שבניתי עד עכשיו',
+      image: '',
+      createdAt: new Date(Date.now() - 10800000).toISOString(),
+      author: { username: 'sarah_builds', email: 'sarah@demo.local' },
+      likes: [],
+      commentCount: 23,
+    },
+    {
+      _id: 'demo-2',
+      text: 'מישהו מחפש להחליף חלקים? יש לי הרבה חלקי Technic עודפים, מחפש Star Wars Minifigs 🔵🟡',
+      image: '',
+      createdAt: new Date(Date.now() - 21600000).toISOString(),
+      author: { username: 'dani_technic', email: 'dani@demo.local' },
+      likes: [],
+      commentCount: 18,
+    },
+    {
+      _id: 'demo-3',
+      text: 'הזמנתי את Tokyo Skyline Architecture! אחד הסטים הכי יפים שיצאו השנה לדעתי 🗼',
+      image: '',
+      createdAt: new Date(Date.now() - 86400000).toISOString(),
+      author: { username: 'michal_moc', email: 'michal@demo.local' },
+      likes: [],
+      commentCount: 7,
+    },
+  ], []);
+
+  // הפוסטים שמוצגים - מהשרת או דמו
+  const displayedPosts = posts.length > 0 ? posts : demoPosts;
+
+  // פאנל ימני - Trending + משתמשים מומלצים
   const rightPanel = (
-    <div className="space-y-16">
-      <Card className="p-16">
-        {user ? (
-          <div className="space-y-12">
-            <div className="flex items-center gap-12">
-              <Avatar name={user.username || user.email} imageUrl={user.profileImage} size={44} />
-              <div className="min-w-0">
-                <div className="text-body font-semibold truncate">{user.username || user.email}</div>
-                <div className="text-caption text-muted truncate">{user.email}</div>
-              </div>
-            </div>
-            <Button variant="ghost" className="w-full" onClick={() => { logout(); window.location.href = '/login'; }}>התנתק</Button>
-          </div>
-        ) : (
-          <div>
-            <div className="text-body font-semibold">הצטרף לקהילה</div>
-            <div className="text-caption text-muted mt-6">התחל לשתף בניות ולגלות סטים חדשים</div>
-            <div className="mt-14">
-              <Button variant="primary" className="w-full" onClick={() => { window.location.href = '/login'; }}>הירשם עכשיו</Button>
+    <div className="space-y-4">
+      {/* כרטיס פרופיל */}
+      {user ? (
+        <Card className="p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <Avatar name={user.username || user.email} imageUrl={user.profileImage} size={44} />
+            <div className="flex-1 min-w-0">
+              <div className="font-bold text-[15px] truncate">{user.username || user.email}</div>
+              <div className="text-[13px] text-[#71767b] truncate">{user.email}</div>
             </div>
           </div>
-        )}
+          <button
+            onClick={() => { logout(); window.location.href = '/login'; }}
+            className="w-full py-1.5 text-[13px] font-semibold text-[#71767b] hover:text-white border border-[#2f3336] rounded-full transition-colors"
+          >
+            התנתק
+          </button>
+        </Card>
+      ) : (
+        <Card className="p-4">
+          <div className="font-bold text-[18px] mb-1">הצטרף לקהילה</div>
+          <div className="text-[13px] text-[#71767b] mb-3">שתף בניות וגלה סטים חדשים</div>
+          <button
+            onClick={() => { window.location.href = '/login'; }}
+            className="w-full py-2 bg-gradient-to-r from-[#1d9bf0] to-[#38bdf8] text-white font-bold rounded-full text-[15px] hover:shadow-lg transition-all"
+          >
+            הירשם עכשיו
+          </button>
+        </Card>
+      )}
+
+      {/* Trending Sets */}
+      <Card className="overflow-hidden">
+        <div className="px-4 py-3 border-b border-[#2f3336]">
+          <div className="font-extrabold text-[20px]">🔥 Trending Sets</div>
+        </div>
+        {[
+          { category: 'LEGO Icons', title: 'Millennium Falcon UCS', count: '156 בניות' },
+          { category: 'LEGO Technic', title: 'Ferrari Daytona SP3', count: '89 בניות' },
+          { category: 'LEGO Architecture', title: 'Tokyo Skyline', count: '134 בניות' },
+        ].map((item, i, arr) => (
+          <div
+            key={item.title}
+            className={`px-4 py-3 hover:bg-white/[0.03] transition-colors cursor-pointer ${i < arr.length - 1 ? 'border-b border-[#2f3336]' : ''}`}
+          >
+            <div className="text-[12px] text-[#71767b]">{item.category}</div>
+            <div className="font-bold text-[15px]">{item.title}</div>
+            <div className="text-[12px] text-[#71767b] mt-0.5">{item.count}</div>
+          </div>
+        ))}
       </Card>
 
-      <Card className="p-16">
-        <div className="flex items-center justify-between gap-12 mb-3">
-          <div className="text-subtitle font-semibold">🔥 Trending Sets</div>
-          <div className="text-caption text-muted">פופולרי</div>
+      {/* אספנים מומלצים */}
+      <Card className="overflow-hidden">
+        <div className="px-4 py-3 border-b border-[#2f3336]">
+          <div className="font-extrabold text-[20px]">אספנים מומלצים</div>
         </div>
-        <div className="mt-12 space-y-10">
-          {rareSetsDemo.map((s) => (
-            <div key={s.id} className="hover:bg-white/2 p-2 rounded-lg transition-colors cursor-pointer">
-              <div className="text-[13px] text-[#71767b] mb-1">LEGO Icons</div>
-              <div className="text-body font-semibold">{s.title}</div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      <Card className="p-16">
-        <div className="text-subtitle font-semibold mb-3">אספנים מומלצים</div>
-        <div className="space-y-10">
-          {suggestedUsers.map((item: any) => {
-            const uid = item.id || item._id;
-            const name = item.username || 'אספן';
-            const isFollowed = followingIds.has(uid);
-            return (
-              <div key={uid} className="flex items-center justify-between gap-12 hover:bg-white/2 p-2 rounded-lg transition-colors">
+        {(suggestedUsers.length > 0 ? suggestedUsers : [
+          { _id: 'u1', username: 'sarah_builds' },
+          { _id: 'u2', username: 'dani_technic' },
+          { _id: 'u3', username: 'michal_moc' },
+        ]).map((u: any, i, arr) => {
+          const uid = u.id || u._id;
+          const name = u.username || 'אספן';
+          const isFollowed = followingIds.has(uid);
+          return (
+            <div
+              key={uid}
+              className={`px-4 py-3 hover:bg-white/[0.03] transition-colors ${i < arr.length - 1 ? 'border-b border-[#2f3336]' : ''}`}
+            >
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Avatar name={name} imageUrl={item.profileImage} size={40} />
+                  <Avatar name={name} imageUrl={u.profileImage} size={44} />
                   <div>
-                    <div className="text-body font-semibold">@{name}</div>
-                    <div className="text-caption text-muted">{item.followersCount ?? 0} עוקבים</div>
+                    <div className="font-bold text-[15px]">@{name}</div>
+                    <div className="text-[12px] text-[#71767b]">אספן לגו</div>
                   </div>
                 </div>
-                {uid && uid !== currentUserId && (
-                  <button onClick={() => onToggleFollow(uid)} disabled={!isSignedIn}
-                    className={`px-4 py-1.5 rounded-full text-sm font-bold transition-colors ${isFollowed ? 'border border-[#71767b] text-white hover:border-red-400 hover:text-red-400' : 'bg-white text-black hover:bg-gray-200'}`}>
-                    {isFollowed ? 'עוקב' : 'עקוב'}
-                  </button>
-                )}
+                <button
+                  onClick={() => handleFollow(uid)}
+                  disabled={!isSignedIn}
+                  className={`px-4 py-1.5 rounded-full text-[14px] font-bold transition-colors disabled:opacity-50 ${
+                    isFollowed
+                      ? 'border border-[#71767b] text-white hover:border-red-400 hover:text-red-400'
+                      : 'bg-white text-black hover:bg-gray-200'
+                  }`}
+                >
+                  {isFollowed ? 'עוקב' : 'עקוב'}
+                </button>
               </div>
-            );
-          })}
-        </div>
-      </Card>
-
-      <Card className="p-16">
-        <div className="flex items-center justify-between gap-12">
-          <div className="text-subtitle font-semibold">Recent activity</div>
-          <div className="text-caption text-muted">Live</div>
-        </div>
-        <div className="mt-12 space-y-12">
-          {recentActivityDemo.map((a) => (
-            <div key={a.id} className="flex items-start justify-between gap-12">
-              <div className="text-body font-semibold">{a.text}</div>
-              <div className="text-caption text-muted whitespace-nowrap">{a.time}</div>
             </div>
-          ))}
-        </div>
-      </Card>
-
-      <Card className="p-16">
-        <div className="flex items-center justify-between gap-12">
-          <div className="text-subtitle font-semibold">AI suggestions</div>
-          <div className="text-caption text-muted">{isSignedIn ? 'personalized' : 'sign in'}</div>
-        </div>
-        <div className="mt-12 space-y-10">
-          {suggestionsBusy ? (<><SkeletonLine width="80%" /><SkeletonLine width="68%" /><SkeletonLine width="92%" /></>) :
-            suggestions.length ? suggestions.slice(0, 5).map((s, i) => <div key={i} className="text-caption text-fg/90 leading-6">{s}</div>) :
-            <div className="text-caption text-muted">{isSignedIn ? 'No suggestions yet.' : 'Sign in to see suggestions.'}</div>}
-        </div>
+          );
+        })}
       </Card>
     </div>
   );
 
   return (
     <ShellLayout title="קהילת אספני הלגו" rightPanel={rightPanel}>
-      <div className="space-y-16">
-        <div className="sticky top-0 bg-black/85 backdrop-blur-xl border-b border-[#2f3336] p-4 z-10">
-          <div className="text-xl font-bold text-white">קהילת אספני הלגו</div>
-          <div className="text-sm text-[#71767b] mt-0.5">Building Dreams Together</div>
-        </div>
+      <div>
+        {/* הדר קבוע עם טאבים */}
+        <div className="sticky top-0 bg-black/85 backdrop-blur-xl border-b border-[#2f3336] z-10">
+          <div className="px-4 pt-3 pb-0">
+            <div className="font-extrabold text-[20px]">קהילת אספני הלגו</div>
+            <div className="text-[13px] text-[#71767b] mt-0.5 mb-3">Building Dreams Together</div>
+          </div>
 
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex rounded-full border border-[#2f3336] overflow-hidden bg-[#16181c]">
-            {(['collections', 'activity'] as const).map((tab) => (
-              <button key={tab} type="button"
-                className={`px-4 py-1.5 text-[13px] font-semibold transition-colors ${activeTab === tab ? 'bg-[#1d9bf0] text-white' : 'bg-transparent text-[#71767b] hover:text-white hover:bg-white/5'}`}
-                onClick={() => setActiveTab(tab)}>
-                {tab === 'collections' ? 'אוספים' : 'בניות'}
+          {/* טאבים */}
+          <div className="flex">
+            {([
+              { key: 'feed', label: 'הפיד' },
+              { key: 'recommended', label: 'בניות מומלצות' },
+            ] as const).map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={`flex-1 py-4 text-[15px] font-semibold relative transition-colors ${
+                  activeTab === key ? 'text-white' : 'text-[#71767b] hover:bg-white/[0.03]'
+                }`}
+              >
+                {label}
+                {activeTab === key && (
+                  <div className="absolute bottom-0 left-0 right-0 h-1 rounded-t bg-gradient-to-r from-[#1d9bf0] to-[#38bdf8]" />
+                )}
               </button>
             ))}
           </div>
-          <Button variant="primary" onClick={() => setCreateOpen(true)} disabled={!isSignedIn || activeTab !== 'activity'}
-            className="px-4 py-1.5 text-[13px] font-semibold rounded-full"
-            style={{ background: 'linear-gradient(135deg, #1d9bf0 0%, #38bdf8 100%)', boxShadow: '0 2px 8px rgba(29,155,240,0.25)' }}>
-            + שתף בניה
-          </Button>
         </div>
 
-        {activeTab === 'collections' ? (
-          <div className="space-y-16">
-            <Card className="p-16">
-              <div className="text-title font-semibold mb-2">Your collections</div>
-              <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-16">
-                {collectionsDemo.map((c) => (
-                  <div key={c.id} className="rounded-lg border border-border bg-bg p-16 transition hover:bg-white/2">
-                    <div className="flex items-center justify-between gap-12">
-                      <div className="text-body font-semibold">{c.name}</div>
-                      <RarityBadge rarity={c.rarity} />
-                    </div>
-                    <div className="mt-12 grid grid-cols-2 gap-12">
-                      <div><div className="text-caption text-muted">Value</div><div className="text-body font-semibold mt-4">{formatMoney(c.value)}</div></div>
-                      <div><div className="text-caption text-muted">Sets</div><div className="text-body font-semibold mt-4">{c.sets}</div></div>
-                    </div>
-                    <div className="text-caption text-muted mt-12">{c.note}</div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-            <Card className="p-16">
-              <div className="text-subtitle font-semibold">Collection activity</div>
-              <div className="mt-12 space-y-12">
-                {recentActivityDemo.map((a) => (
-                  <div key={a.id} className="flex items-start justify-between gap-12">
-                    <div className="text-body font-semibold">{a.text}</div>
-                    <div className="text-caption text-muted whitespace-nowrap">{a.time}</div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-            <Card className="p-16">
-              <div className="flex items-center justify-between gap-12"><div className="text-subtitle font-semibold">Marketplace / trades</div><div className="text-caption text-muted">{tradesDemo.length} active</div></div>
-              <div className="mt-12 space-y-12">
-                {tradesDemo.map((t) => (
-                  <div key={t.id} className="rounded-lg border border-border bg-bg p-12">
-                    <div className="flex items-center justify-between gap-12"><div className="text-body font-semibold">{t.with}</div><div className="text-caption text-muted">{t.status}</div></div>
-                    <div className="text-caption text-muted mt-8">Offer: <span className="text-fg/90">{t.offer}</span></div>
-                    <div className="text-caption text-muted mt-8">Request: <span className="text-fg/90">{t.request}</span></div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-        ) : (
-          <div className="space-y-16">
-            <Card className="p-16">
-              <div className="text-subtitle font-semibold mb-2">Smart search</div>
-              <div className="flex gap-12 items-center mt-4">
-                <Input label={null} value={searchQ} onChange={(e) => setSearchQ(e.target.value)} placeholder="Search posts..." className="flex-1" />
-                <Button variant="secondary" className="px-16 py-10" onClick={() => runSearch(searchQ)} disabled={!searchQ.trim() || searching}>
-                  {searching ? 'Searching...' : 'Search'}
-                </Button>
-              </div>
-            </Card>
+        {/* Post Composer - כתיבת פוסט חדש */}
+        {isSignedIn && (
+          <div className="border-b border-[#2f3336] px-4 py-3">
+            <div className="flex gap-3">
+              <Avatar name={user?.username || user?.email} imageUrl={user?.profileImage} size={44} />
+              <div className="flex-1">
+                <textarea
+                  className="w-full bg-transparent text-[20px] outline-none resize-none placeholder-[#71767b] min-h-[80px]"
+                  placeholder="שתף את הבניה האחרונה שלך..."
+                  value={newPostText}
+                  onChange={e => setNewPostText(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && e.ctrlKey) handleCreatePost();
+                  }}
+                />
 
-            {loading ? (
-              <div className="rounded-lg border border-border bg-bg p-16 space-y-12"><SkeletonLine width="60%" /><SkeletonLine width="85%" /><SkeletonLine width="92%" /></div>
-            ) : loadError ? (
-              <div className="text-caption text-red-400">{loadError}</div>
-            ) : null}
+                {/* כפתורי תחתית ה-composer */}
+                <div className="flex items-center justify-between pt-3 border-t border-[#2f3336]">
+                  {/* כפתור העלאת תמונה */}
+                  <label className="w-9 h-9 rounded-full flex items-center justify-center text-[#1d9bf0] hover:bg-[#1d9bf0]/10 transition-colors cursor-pointer">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <polyline points="21 15 16 10 5 21" />
+                    </svg>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => setNewPostImage(e.target.files?.[0] || null)}
+                    />
+                  </label>
 
-            {displayedActivity.length > 0 ? (
-              <div className="space-y-16">
-                {displayedActivity.map((p) => <PostCard key={p._id} post={p} currentUserId={currentUserId} onToggleLike={onToggleLike} matchReason={p.matchReason} />)}
+                  <div className="flex items-center gap-3">
+                    {/* אינדיקטור תמונה נבחרה */}
+                    {newPostImage && (
+                      <span className="text-[13px] text-[#1d9bf0]">📎 {newPostImage.name}</span>
+                    )}
+                    {/* כפתור פרסום */}
+                    <button
+                      onClick={handleCreatePost}
+                      disabled={!newPostText.trim() || createBusy}
+                      className="px-4 py-2 bg-gradient-to-r from-[#1d9bf0] to-[#38bdf8] text-white font-bold rounded-full disabled:opacity-40 hover:shadow-lg transition-all text-[15px]"
+                    >
+                      {createBusy ? 'מפרסם...' : 'פרסם'}
+                    </button>
+                  </div>
+                </div>
               </div>
-            ) : !loading && (
-              <div className="rounded-lg border border-border bg-bg p-24 text-caption text-muted">No activity found.</div>
-            )}
+            </div>
           </div>
         )}
 
-        <Modal open={createOpen} title="שתף בניה" onClose={() => { if (!createBusy) setCreateOpen(false); }}
-          footer={
-            <div className="flex items-center justify-end gap-12">
-              <Button variant="ghost" onClick={() => setCreateOpen(false)} disabled={createBusy}>Cancel</Button>
-              <Button variant="primary" onClick={onCreatePost} disabled={createBusy || !newText.trim()}>{createBusy ? 'Posting...' : 'Post'}</Button>
-            </div>
-          }>
-          <div className="space-y-16">
-            <Input label="Text" value={newText} onChange={(e) => setNewText(e.target.value)} placeholder="Share your LEGO build..." as="textarea" />
-            <div className="space-y-6">
-              <div className="text-caption text-muted font-medium">Optional image</div>
-              <input type="file" accept="image/*" onChange={(e) => setNewImage(e.target.files?.[0] || null)} className="w-full rounded-lg border border-border bg-transparent px-12 py-10 text-body" />
-            </div>
+        {/* רשימת הפוסטים */}
+        {loading ? (
+          <>
+            <SkeletonPost />
+            <SkeletonPost />
+            <SkeletonPost />
+          </>
+        ) : (
+          displayedPosts.map(post => (
+            <PostCard
+              key={post._id}
+              post={post}
+              currentUserId={currentUserId}
+              onToggleLike={handleLike}
+            />
+          ))
+        )}
+
+        {/* הודעה כשאין פוסטים */}
+        {!loading && displayedPosts.length === 0 && (
+          <div className="p-12 text-center text-[#71767b]">
+            אין פוסטים עדיין. היה הראשון לשתף! 🧱
           </div>
-        </Modal>
+        )}
       </div>
     </ShellLayout>
   );

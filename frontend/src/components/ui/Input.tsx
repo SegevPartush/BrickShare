@@ -1,11 +1,11 @@
 import React from 'react';
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+type InputProps = React.InputHTMLAttributes<HTMLInputElement> & {
   label?: string | null;
   hint?: string;
   error?: string;
   as?: 'input' | 'textarea';
-}
+};
 
 export default function Input({ label, hint, error, as: kind = 'input', className = '', ...props }: InputProps) {
   const cls = 'w-full rounded-lg border border-border bg-transparent px-12 py-10 text-body placeholder:text-muted outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/25';
