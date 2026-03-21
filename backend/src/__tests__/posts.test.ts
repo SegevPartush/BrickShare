@@ -27,12 +27,12 @@ describe('Posts', () => {
     const reg = await request(app)
       .post('/api/auth/register')
       .send({
-        username: 'testuser',
-        email: 'test@test.com',
+        username: 'postsuser',
+        email: 'posts@test.com',
         password: '123456'
       });
     token = reg.body.accessToken;
-    userId = reg.body.user.id;
+    userId = reg.body.user?.id || '';
   });
 
   test('get all posts', async () => {

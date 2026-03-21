@@ -48,3 +48,7 @@ backend/uploads/**/*
 backend/public/*
 !backend/public/.gitkeep
 backend/PROJECT_STATUS.md
+backend/data/
+
+# Local test frontend (never push - for testing only)
+local-test-app/
