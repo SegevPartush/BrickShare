@@ -32,4 +32,5 @@ export interface AuthContextType {
   refresh: () => Promise<any>;
   logout: () => void;
   setOAuthTokens: (tokens: { accessToken: string; refreshToken: string; userId: string }) => void;
+  getValidToken: () => Promise<string>;
 }

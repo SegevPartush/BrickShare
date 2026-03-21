@@ -2,10 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
 const QUICK_ACTIONS = [
-  'מה הסט הכי חדש של Star Wars?',
+  'מי מוכר סטים של Star Wars?',
   'כמה שווה Millennium Falcon UCS?',
   'תמליץ לי על סטים עד 200$',
-  'מה ההבדל בין Technic ל-Creator?',
+  'מי מחפש Creator Expert?',
 ];
 
 const WELCOME_MESSAGE: Message = {
@@ -33,7 +33,7 @@ function TypingIndicator() {
 }
 
 export default function AIChatWidget() {
-  const { accessToken } = useAuth();
+  const { getValidToken, refresh } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState('');
@@ -53,14 +53,27 @@ export default function AIChatWidget() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/ai/ask', {
+      const token = await getValidToken();
+      
+      const doRequest = async (t: string) => fetch('/api/ai/ask', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        },
+        headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}) },
         body: JSON.stringify({ message: userMessage }),
       });
+
+      let res = await doRequest(token);
+
+      // אם פג תוקף - מנסה לחדש ולשלוח שוב
+      if (res.status === 401) {
+        try {
+          const refreshed = await refresh();
+          res = await doRequest(refreshed.accessToken);
+        } catch {
+          setMessages((prev) => [...prev, { role: 'assistant', content: 'הטוקן פג תוקף. אנא התחבר מחדש.' }]);
+          setLoading(false);
+          return;
+        }
+      }
 
       const data = await res.json();
 

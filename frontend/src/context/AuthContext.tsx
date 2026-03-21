@@ -76,13 +76,31 @@ export function AuthProvider({ children }: { children?: React.ReactNode }) {
   }
 
   async function refresh() {
-    if (!refreshToken) throw new Error('Missing refresh token');
-    const data = await api.refreshToken({ refreshToken });
+    const storedRefresh = refreshToken || localStorage.getItem(REFRESH_KEY) || '';
+    if (!storedRefresh) throw new Error('Missing refresh token');
+    const data = await api.refreshToken({ refreshToken: storedRefresh });
     setAccessToken(data.accessToken);
     setRefreshToken(data.refreshToken);
     localStorage.setItem(ACCESS_KEY, data.accessToken);
     localStorage.setItem(REFRESH_KEY, data.refreshToken);
     return data;
+  }
+
+  // מחדש טוקן אוטומטית אם קיים refresh token
+  async function getValidToken(): Promise<string> {
+    if (accessToken) return accessToken;
+    const storedRefresh = localStorage.getItem(REFRESH_KEY);
+    if (!storedRefresh) return '';
+    try {
+      const data = await api.refreshToken({ refreshToken: storedRefresh });
+      setAccessToken(data.accessToken);
+      setRefreshToken(data.refreshToken);
+      localStorage.setItem(ACCESS_KEY, data.accessToken);
+      localStorage.setItem(REFRESH_KEY, data.refreshToken);
+      return data.accessToken;
+    } catch {
+      return '';
+    }
   }
 
   function logout() {
@@ -96,7 +114,7 @@ export function AuthProvider({ children }: { children?: React.ReactNode }) {
 
   const value: AuthContextType = {
     accessToken, refreshToken, user, loading, authHeaders,
-    register, login, refresh, logout, setOAuthTokens
+    register, login, refresh, logout, setOAuthTokens, getValidToken
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
