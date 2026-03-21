@@ -4,6 +4,7 @@ import path from 'path';
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
+import helmet from 'helmet';
 import passport from 'passport';
 import swaggerUi from 'swagger-ui-express';
 
@@ -18,9 +19,19 @@ import aiRoutes from './routes/ai.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
-app.use(cors());
-app.use(express.json());
+// מסיר X-Powered-By ומוסיף headers אבטחה סטנדרטיים
+app.use(helmet({ contentSecurityPolicy: false }));
+
+// CORS רק מהפרונט שלנו
+app.use(cors({
+  origin: FRONTEND_URL,
+  credentials: true,
+}));
+
+// הגבלת גודל body למניעת payload attacks
+app.use(express.json({ limit: '2mb' }));
 app.use(passport.initialize());
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/uploads', express.static('uploads'));
