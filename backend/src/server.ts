@@ -14,6 +14,7 @@ import userRoutes from './routes/user.routes';
 import postRoutes from './routes/post.routes';
 import commentRoutes from './routes/comment.routes';
 import followRoutes from './routes/follow.routes';
+import aiRoutes from './routes/ai.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -29,6 +30,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/follow', followRoutes);
+app.use('/api/ai', aiRoutes);
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
