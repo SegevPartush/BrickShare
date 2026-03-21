@@ -16,7 +16,9 @@ export const getUserProfile = async (req: Request, res: Response): Promise<Respo
         username: user.username,
         email: user.email,
         profileImage: user.profileImage,
-        createdAt: user.createdAt
+        createdAt: user.createdAt,
+        followersCount: user.followers?.length ?? 0,
+        followingCount: user.following?.length ?? 0,
       }
     });
   } catch (error) {

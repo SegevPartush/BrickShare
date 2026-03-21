@@ -109,6 +109,11 @@ export async function getFollowing(payload: { accessToken: string; targetUserId:
   return res.data.following;
 }
 
+export async function getUser(userId: string) {
+  const res = await api.get(`/api/users/${userId}`);
+  return res.data.user;
+}
+
 export async function getComments(postId: string) {
   const res = await api.get(`/api/comments/posts/${postId}/comments`);
   return res.data.comments || [];

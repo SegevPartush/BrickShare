@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import ShellLayout from '../components/layout/ShellLayout';
 import Avatar from '../components/ui/Avatar';
 import CreateBuildModal from '../components/posts/CreateBuildModal';
@@ -155,8 +156,14 @@ function EditProfileModal({ user, onClose, onSaved }: { user: any; onClose: () =
 
 export default function ProfilePage() {
   const { user, logout, accessToken } = useAuth();
-  const userId = user?.id || user?._id || '';
+  const { userId: paramUserId } = useParams<{ userId?: string }>();
 
+  // Viewing own profile if no param or param matches current user
+  const ownId = user?.id || user?._id || '';
+  const viewingUserId = paramUserId || ownId;
+  const isOwnProfile = !paramUserId || paramUserId === ownId;
+
+  const [profileUser, setProfileUser] = useState<any>(null);
   const [posts, setPosts] = useState<ProfilePost[]>([]);
   const [postsBusy, setPostsBusy] = useState(false);
   const [selectedPost, setSelectedPost] = useState<ProfilePost | null>(null);
@@ -164,21 +171,59 @@ export default function ProfilePage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
   const [activeTab, setActiveTab] = useState<'builds' | 'liked'>('builds');
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
 
-  // Stable demo stats seeded from user id
-  const seed = userId.charCodeAt(0) || 42;
-  const followersCount = 47 + (seed % 900);
-  const followingCount = 23 + (seed % 280);
-  const totalLikes = posts.reduce((s, p) => s + (p.likes?.length ?? 0), 0) + seed % 500;
+  const totalLikes = posts.reduce((s, p) => s + (p.likes?.length ?? 0), 0);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!viewingUserId) return;
+
+    // Load profile user data
+    api.getUser(viewingUserId)
+      .then((u: any) => {
+        setProfileUser(u);
+        setFollowersCount(u.followersCount ?? 0);
+        setFollowingCount(u.followingCount ?? 0);
+      })
+      .catch(() => {
+        if (isOwnProfile && user) setProfileUser(user);
+      });
+
+    // Load posts
     setPostsBusy(true);
-    api.getUserPosts(userId)
+    api.getUserPosts(viewingUserId)
       .then(setPosts)
       .catch(() => setPosts([]))
       .finally(() => setPostsBusy(false));
-  }, [userId]);
+
+    // Check if current user follows this profile
+    if (!isOwnProfile && accessToken) {
+      api.getFollowers({ accessToken, targetUserId: viewingUserId })
+        .then((followers: any[]) => {
+          setIsFollowing(followers.some((f: any) => (f.id || f._id) === ownId));
+        })
+        .catch(() => {});
+    }
+  }, [viewingUserId, accessToken]);
+
+  // Keep profileUser in sync after editing own profile
+  useEffect(() => {
+    if (isOwnProfile && user) setProfileUser(user);
+  }, [user, isOwnProfile]);
+
+  async function handleToggleFollow() {
+    if (!accessToken) { window.location.href = '/login'; return; }
+    setFollowBusy(true);
+    try {
+      await api.toggleFollow({ accessToken, targetUserId: viewingUserId });
+      setIsFollowing(prev => !prev);
+      setFollowersCount(prev => isFollowing ? prev - 1 : prev + 1);
+    } catch { /* silent */ }
+    finally { setFollowBusy(false); }
+  }
 
   if (!user) {
     return (
@@ -196,7 +241,7 @@ export default function ProfilePage() {
     );
   }
 
-  const displayName = user.username || user.email.split('@')[0];
+  const displayName = (profileUser?.username || profileUser?.email?.split('@')[0]) ?? 'User';
   const handle = '@' + displayName.toLowerCase().replace(/\s+/g, '_');
   const rank = getBuilderRank(posts.length);
 
@@ -244,25 +289,42 @@ export default function ProfilePage() {
             <div className="relative">
               <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl border-4 border-black overflow-hidden bg-[#16181c]"
                 style={{ boxShadow: `0 0 0 3px ${rank.color}` }}>
-                <Avatar name={displayName} imageUrl={user.profileImage} size={112} />
+                <Avatar name={displayName} imageUrl={profileUser?.profileImage} size={112} />
               </div>
               {/* Rank badge */}
               <div className="absolute -bottom-2 -right-2 text-lg">{rank.icon}</div>
             </div>
 
             <div className="flex items-center gap-2 pb-1">
-              <button onClick={() => setCreateOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-full font-bold text-[14px] text-white transition-all hover:opacity-90"
-                style={{ background: 'linear-gradient(135deg, #1d9bf0, #38bdf8)' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-                New Build
-              </button>
-              <button onClick={() => setEditOpen(true)}
-                className="px-4 py-2 rounded-full border border-[#2f3336] text-[14px] font-bold text-white hover:bg-white/5 transition-colors">
-                Edit Profile
-              </button>
+              {isOwnProfile ? (
+                <>
+                  <button onClick={() => setCreateOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-full font-bold text-[14px] text-white transition-all hover:opacity-90"
+                    style={{ background: 'linear-gradient(135deg, #1d9bf0, #38bdf8)' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                    New Build
+                  </button>
+                  <button onClick={() => setEditOpen(true)}
+                    className="px-4 py-2 rounded-full border border-[#2f3336] text-[14px] font-bold text-white hover:bg-white/5 transition-colors">
+                    Edit Profile
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleToggleFollow}
+                  disabled={followBusy}
+                  className={`px-5 py-2 rounded-full text-[14px] font-bold transition-all ${
+                    isFollowing
+                      ? 'border border-[#2f3336] text-white hover:border-red-500 hover:text-red-400'
+                      : 'text-black hover:opacity-90'
+                  }`}
+                  style={isFollowing ? {} : { background: 'linear-gradient(135deg, #1d9bf0, #38bdf8)' }}
+                >
+                  {followBusy ? '...' : isFollowing ? 'Following' : 'Follow'}
+                </button>
+              )}
             </div>
           </div>
 
@@ -384,7 +446,7 @@ export default function ProfilePage() {
       )}
 
       {selectedPost && <BuildDetailModal post={selectedPost} onClose={() => setSelectedPost(null)} />}
-      {editOpen && <EditProfileModal user={user} onClose={() => setEditOpen(false)} onSaved={() => { setEditOpen(false); window.location.reload(); }} />}
+      {editOpen && <EditProfileModal user={profileUser ?? user} onClose={() => setEditOpen(false)} onSaved={() => { setEditOpen(false); window.location.reload(); }} />}
       {createOpen && <CreateBuildModal onClose={() => setCreateOpen(false)} onCreated={() => { setCreateOpen(false); window.location.reload(); }} />}
 
       {/* Click outside to close logout menu */}

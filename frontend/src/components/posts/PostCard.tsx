@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Avatar from '../ui/Avatar';
 import { Post } from '../../types';
 import { useAuth } from '../../context/AuthContext';
@@ -41,6 +42,7 @@ function isLikedByUser(post: Post, userId?: string): boolean {
 
 export default function PostCard({ post, currentUserId, onToggleLike, matchReason }: PostCardProps) {
   const { accessToken, user } = useAuth();
+  const navigate = useNavigate();
   const isSignedIn = Boolean(accessToken);
 
   const [retweeted, setRetweeted] = useState(false);
@@ -58,6 +60,11 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
 
   const authorName = post.author?.username || post.author?.email?.split('@')[0] || 'User';
   const authorHandle = '@' + authorName.toLowerCase().replace(/\s+/g, '_');
+  const authorId = post.author?._id;
+
+  function goToProfile() {
+    if (authorId) navigate(`/profile/${authorId}`);
+  }
 
   // Toggle like with optimistic update
   function handleLike() {
@@ -110,13 +117,15 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
         <div className="flex gap-3">
           {/* Avatar */}
           <div className="shrink-0 pt-0.5">
-            <Avatar name={authorName} imageUrl={post.author?.profileImage} size={44} />
+            <button onClick={goToProfile} className="block">
+              <Avatar name={authorName} imageUrl={post.author?.profileImage} size={44} />
+            </button>
           </div>
 
           <div className="flex-1 min-w-0">
             {/* Author row */}
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-bold text-[15px] hover:underline cursor-pointer">{authorName}</span>
+              <span onClick={goToProfile} className="font-bold text-[15px] hover:underline cursor-pointer">{authorName}</span>
               <span className="text-[#71767b] text-[14px]">{authorHandle}</span>
               <span className="text-[#71767b]">·</span>
               <span className="text-[#71767b] text-[13px]">{timeAgo(post.createdAt)}</span>

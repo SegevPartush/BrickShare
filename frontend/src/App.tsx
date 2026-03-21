@@ -23,6 +23,7 @@ export default function App() {
         <Route path="/search" element={<SearchPage />} />
         <Route path="/messages" element={<MessagesPage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/profile/:userId" element={<ProfilePage />} />
         <Route path="*" element={<Navigate to="/feed" replace />} />
       </Routes>
       <AIChatWidget />

@@ -13,7 +13,7 @@ export interface Post {
   title?: string;
   text: string;
   image?: string;
-  author: { username?: string; email?: string; profileImage?: string };
+  author: { _id?: string; username?: string; email?: string; profileImage?: string };
   likes: any[];
   commentCount?: number;
   retweets?: number;
