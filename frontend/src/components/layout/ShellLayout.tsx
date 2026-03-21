@@ -58,16 +58,16 @@ export default function ShellLayout({ title, subtitle, children, rightPanel, sho
         )}
 
         {/* Content area with optional right panel */}
-        <div className="flex-1 flex justify-center">
-          <div className={`w-full ${rightPanel ? 'max-w-[1000px]' : 'max-w-[620px]'} flex gap-0 lg:gap-8 lg:px-0 lg:py-0`}>
+        <div className="flex-1 flex">
+          <div className={`w-full flex gap-0`}>
             {/* Main feed column */}
-            <div className="flex-1 min-w-0 border-x border-[#2f3336] pb-16 lg:pb-0">
+            <div className="flex-1 min-w-0 border-r border-[#2f3336] pb-16 lg:pb-0">
               {children}
             </div>
 
             {/* Right panel */}
             {rightPanel && (
-              <aside className="hidden lg:block w-[340px] shrink-0 py-4 space-y-4">
+              <aside className="hidden lg:block w-[340px] shrink-0 px-4 py-4 space-y-4">
                 {rightPanel}
               </aside>
             )}
