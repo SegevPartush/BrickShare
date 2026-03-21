@@ -64,8 +64,7 @@ export default function Topbar({ onLogoClick }: TopbarProps) {
 
         {/* Desktop: Logo (not clickable for menu) */}
         <div className="hidden md:flex items-center gap-2 shrink-0">
-          <Logo size={34} />
-          <span className="font-extrabold text-[18px] text-white tracking-tight">BrickShare</span>
+          <Logo size={40} />
         </div>
 
         {/* Desktop inline nav */}

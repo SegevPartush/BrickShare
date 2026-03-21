@@ -35,7 +35,7 @@ export default function LeftSidebar({ onShareBuild }: Props) {
     <aside className="hidden lg:flex flex-col h-screen sticky top-0 w-[260px] shrink-0 border-r border-[#2f3336] px-3 py-4">
       {/* Logo */}
       <div className="px-2 mb-6 cursor-pointer" onClick={() => navigate('/feed')}>
-        <Logo size={36} />
+        <Logo size={44} />
       </div>
 
       {/* Nav links */}
