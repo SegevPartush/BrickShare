@@ -247,7 +247,7 @@ export default function MessagesPage() {
                 activeConv.messages.map(msg => {
                   const isMe = msg.senderId === currentUserId;
                   return (
-                    <div key={msg.id} className={`flex ${isMe ? 'justify-start' : 'justify-end'}`}>
+                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[70%] px-4 py-2.5 rounded-2xl text-[15px] leading-relaxed ${
                         isMe
                           ? 'bg-gradient-to-r from-[#1d9bf0] to-[#38bdf8] text-white rounded-br-sm'
