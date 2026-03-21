@@ -159,6 +159,14 @@ export default function FeedPage() {
     }
   }
 
+  function handlePostDeleted(postId: string) {
+    setPosts(prev => prev.filter(p => p._id !== postId));
+  }
+
+  function handlePostEdited(postId: string, newText: string) {
+    setPosts(prev => prev.map(p => p._id === postId ? { ...p, text: newText } : p));
+  }
+
   // עקוב / הפסק לעקוב
   async function handleFollow(targetUserId: string) {
     if (!accessToken) return;
@@ -377,6 +385,8 @@ export default function FeedPage() {
                 post={post}
                 currentUserId={currentUserId}
                 onToggleLike={handleLike}
+                onDeleted={handlePostDeleted}
+                onEdited={handlePostEdited}
               />
               {/* Insert sponsored post every 5 posts */}
               {(idx + 1) % 5 === 0 && <SponsoredPost />}

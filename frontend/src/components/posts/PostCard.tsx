@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Avatar from '../ui/Avatar';
 import { Post } from '../../types';
@@ -10,6 +10,8 @@ export interface PostCardProps {
   currentUserId?: string;
   onToggleLike?: (postId: string) => void;
   matchReason?: string;
+  onDeleted?: (postId: string) => void;
+  onEdited?: (postId: string, newText: string) => void;
 }
 
 interface Comment {
@@ -40,7 +42,7 @@ function isLikedByUser(post: Post, userId?: string): boolean {
   });
 }
 
-export default function PostCard({ post, currentUserId, onToggleLike, matchReason }: PostCardProps) {
+export default function PostCard({ post, currentUserId, onToggleLike, matchReason, onDeleted, onEdited }: PostCardProps) {
   const { accessToken, user } = useAuth();
   const navigate = useNavigate();
   const isSignedIn = Boolean(accessToken);
@@ -56,14 +58,52 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
   const [liked, setLiked] = useState(isLikedByUser(post, currentUserId));
   const [likesCount, setLikesCount] = useState(post.likes?.length ?? 0);
   const [commentsCount, setCommentsCount] = useState(post.commentCount ?? 0);
+  const [showMenu, setShowMenu] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editText, setEditText] = useState(post.text || '');
+  const [editBusy, setEditBusy] = useState(false);
   const commentInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const authorName = post.author?.username || post.author?.email?.split('@')[0] || 'User';
   const authorHandle = '@' + authorName.toLowerCase().replace(/\s+/g, '_');
   const authorId = post.author?._id;
+  const isOwnPost = Boolean(authorId && (user?.id === authorId || user?._id === authorId));
 
   function goToProfile() {
     if (authorId) navigate(`/profile/${authorId}`);
+  }
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    }
+    if (showMenu) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMenu]);
+
+  async function handleDelete() {
+    if (!accessToken) return;
+    setShowMenu(false);
+    if (!window.confirm('למחוק את הפוסט?')) return;
+    try {
+      await api.deletePost({ accessToken, postId: post._id });
+      onDeleted?.(post._id);
+    } catch { /* silent */ }
+  }
+
+  async function handleSaveEdit() {
+    if (!accessToken || !editText.trim()) return;
+    setEditBusy(true);
+    try {
+      await api.updatePost({ accessToken, postId: post._id, text: editText.trim() });
+      onEdited?.(post._id, editText.trim());
+      setEditMode(false);
+    } catch { /* silent */ }
+    finally { setEditBusy(false); }
   }
 
   // Toggle like with optimistic update
@@ -124,11 +164,51 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
 
           <div className="flex-1 min-w-0">
             {/* Author row */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span onClick={goToProfile} className="font-bold text-[15px] hover:underline cursor-pointer">{authorName}</span>
-              <span className="text-[#71767b] text-[14px]">{authorHandle}</span>
-              <span className="text-[#71767b]">·</span>
-              <span className="text-[#71767b] text-[13px]">{timeAgo(post.createdAt)}</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span onClick={goToProfile} className="font-bold text-[15px] hover:underline cursor-pointer">{authorName}</span>
+                <span className="text-[#71767b] text-[14px]">{authorHandle}</span>
+                <span className="text-[#71767b]">·</span>
+                <span className="text-[#71767b] text-[13px]">{timeAgo(post.createdAt)}</span>
+              </div>
+
+              {/* 3-dot menu — only for own posts */}
+              {isOwnPost && (
+                <div className="relative shrink-0" ref={menuRef}>
+                  <button
+                    onClick={() => setShowMenu(v => !v)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-[#71767b] hover:text-white hover:bg-white/10 transition-colors"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+                    </svg>
+                  </button>
+                  {showMenu && (
+                    <div className="absolute top-9 right-0 w-40 bg-[#16181c] border border-[#2f3336] rounded-xl shadow-2xl z-20 overflow-hidden">
+                      <button
+                        onClick={() => { setEditMode(true); setEditText(post.text || ''); setShowMenu(false); }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[14px] text-white hover:bg-white/[0.06] transition-colors"
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                        Edit Post
+                      </button>
+                      <button
+                        onClick={handleDelete}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[14px] text-red-400 hover:bg-red-400/10 transition-colors"
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                          <path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                        </svg>
+                        Delete Post
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* AI match reason */}
@@ -141,16 +221,44 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
               </div>
             )}
 
-            {/* Title (first line if separated by double newline) */}
-            {post.title && (
+            {/* Title */}
+            {post.title && !editMode && (
               <div className="font-bold text-[17px] text-white mt-1.5">{post.title}</div>
             )}
 
-            {/* Caption */}
-            {post.text && (
-              <p className="text-[15px] leading-[1.5] mt-1 whitespace-pre-wrap break-words text-[#e7e9ea]">
-                {post.title ? post.text : post.text}
-              </p>
+            {/* Caption / edit mode */}
+            {editMode ? (
+              <div className="mt-2">
+                <textarea
+                  value={editText}
+                  onChange={e => setEditText(e.target.value)}
+                  dir="auto"
+                  rows={3}
+                  className="w-full bg-[#202327] border border-[#1d9bf0] rounded-xl px-3 py-2 text-[15px] text-white outline-none resize-none"
+                  autoFocus
+                />
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={handleSaveEdit}
+                    disabled={editBusy || !editText.trim()}
+                    className="px-4 py-1.5 rounded-full bg-[#1d9bf0] text-white text-[13px] font-bold disabled:opacity-40 hover:bg-[#1a8cd8] transition-colors"
+                  >
+                    {editBusy ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => setEditMode(false)}
+                    className="px-4 py-1.5 rounded-full border border-[#2f3336] text-white text-[13px] font-bold hover:bg-white/5 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              post.text && (
+                <p className="text-[15px] leading-[1.5] mt-1 whitespace-pre-wrap break-words text-[#e7e9ea]">
+                  {post.title ? post.text : post.text}
+                </p>
+              )
             )}
           </div>
         </div>

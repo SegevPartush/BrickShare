@@ -109,6 +109,19 @@ export async function getFollowing(payload: { accessToken: string; targetUserId:
   return res.data.following;
 }
 
+export async function updatePost(payload: { accessToken: string; postId: string; text: string }) {
+  const res = await api.put(`/api/posts/${payload.postId}`, { text: payload.text }, {
+    headers: { Authorization: `Bearer ${payload.accessToken}` }
+  });
+  return res.data.post;
+}
+
+export async function deletePost(payload: { accessToken: string; postId: string }) {
+  await api.delete(`/api/posts/${payload.postId}`, {
+    headers: { Authorization: `Bearer ${payload.accessToken}` }
+  });
+}
+
 export async function getUser(userId: string) {
   const res = await api.get(`/api/users/${userId}`);
   return res.data.user;
