@@ -53,7 +53,7 @@ router.get('/:id', getUserProfile);
  *       200:
  *         description: Profile updated
  */
-router.put('/:id', authMiddleware, upload.single('profileImage'), updateProfileValidator, validate, updateUserProfile);
+router.put('/:id', authMiddleware, upload.fields([{ name: 'profileImage', maxCount: 1 }, { name: 'coverImage', maxCount: 1 }]), updateProfileValidator, validate, updateUserProfile);
 
 /**
  * @swagger

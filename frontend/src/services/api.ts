@@ -51,10 +51,12 @@ export async function updateProfile(payload: {
   userId: string;
   username?: string;
   profileImageFile?: File | null;
+  coverImageFile?: File | null;
 }) {
   const form = new FormData();
   if (payload.username !== undefined) form.append('username', payload.username);
   if (payload.profileImageFile) form.append('profileImage', payload.profileImageFile);
+  if (payload.coverImageFile) form.append('coverImage', payload.coverImageFile);
   const res = await api.put(`/api/users/${payload.userId}`, form, {
     headers: { Authorization: `Bearer ${payload.accessToken}` }
   });

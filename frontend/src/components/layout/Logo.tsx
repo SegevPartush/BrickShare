@@ -2,10 +2,22 @@ import React from 'react';
 
 interface LogoProps {
   size?: number;
+  /** If true, stretches to fill the container width */
+  fullWidth?: boolean;
 }
 
-export default function Logo({ size = 42 }: LogoProps) {
-  // Image is ~3.2:1 wide, use size as height
+export default function Logo({ size = 42, fullWidth = false }: LogoProps) {
+  if (fullWidth) {
+    return (
+      <img
+        src="/logo.png"
+        alt="BrickShare"
+        className="w-full h-auto object-contain cursor-pointer transition-opacity hover:opacity-80 select-none"
+        draggable={false}
+      />
+    );
+  }
+
   return (
     <img
       src="/logo.png"

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import ShellLayout from '../components/layout/ShellLayout';
 import Avatar from '../components/ui/Avatar';
@@ -256,6 +256,8 @@ export default function ProfilePage() {
   const [followingCount, setFollowingCount] = useState(0);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
+  const [coverBusy, setCoverBusy] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   const totalLikes = posts.reduce((s, p) => s + (p.likes?.length ?? 0), 0);
 
@@ -306,6 +308,17 @@ export default function ProfilePage() {
     finally { setFollowBusy(false); }
   }
 
+  async function handleCoverUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !accessToken) return;
+    setCoverBusy(true);
+    try {
+      const updated = await api.updateProfile({ accessToken, userId: ownId, coverImageFile: file });
+      setProfileUser((prev: any) => ({ ...prev, coverImage: updated.coverImage }));
+    } catch { /* silent */ }
+    finally { setCoverBusy(false); if (coverInputRef.current) coverInputRef.current.value = ''; }
+  }
+
   if (!user) {
     return (
       <ShellLayout title="Profile">
@@ -331,13 +344,50 @@ export default function ProfilePage() {
       {/* ── Profile header ── */}
       <div className="border-b border-[#2f3336]">
         {/* Banner */}
-        <div className="h-32 md:h-44 relative overflow-hidden"
-          style={{ background: 'linear-gradient(135deg, #0f2027 0%, #1a1a2e 40%, #16213e 70%, #0f2027 100%)' }}>
-          {/* Brick pattern overlay */}
-          <div className="absolute inset-0 opacity-10" style={{
-            backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 14px, rgba(255,255,255,0.15) 14px, rgba(255,255,255,0.15) 15px),
-              repeating-linear-gradient(90deg, transparent, transparent 14px, rgba(255,255,255,0.15) 14px, rgba(255,255,255,0.15) 15px)`
-          }} />
+        <div className="h-32 md:h-48 relative overflow-hidden group"
+          style={profileUser?.coverImage ? {} : { background: 'linear-gradient(135deg, #0f2027 0%, #1a1a2e 40%, #16213e 70%, #0f2027 100%)' }}>
+
+          {/* Cover photo */}
+          {profileUser?.coverImage ? (
+            <img
+              src={profileUser.coverImage}
+              alt="Cover"
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          ) : (
+            <div className="absolute inset-0 opacity-10" style={{
+              backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 14px, rgba(255,255,255,0.15) 14px, rgba(255,255,255,0.15) 15px),
+                repeating-linear-gradient(90deg, transparent, transparent 14px, rgba(255,255,255,0.15) 14px, rgba(255,255,255,0.15) 15px)`
+            }} />
+          )}
+
+          {/* Dark overlay on hover for own profile */}
+          {isOwnProfile && (
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+              <label className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex items-center gap-2 bg-black/60 backdrop-blur text-white text-[14px] font-semibold px-4 py-2 rounded-full hover:bg-black/80 transition-colors">
+                {coverBusy ? (
+                  <span>Uploading...</span>
+                ) : (
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                      <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                    Change Cover
+                  </>
+                )}
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleCoverUpload}
+                  disabled={coverBusy}
+                />
+              </label>
+            </div>
+          )}
+
           {/* Settings / logout menu */}
           <div className="absolute top-3 right-3 flex gap-2">
             <button
