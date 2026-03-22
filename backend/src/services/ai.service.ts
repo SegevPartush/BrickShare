@@ -19,22 +19,36 @@ Your behavior:
 - Remember everything discussed in this conversation. If the user says "tell me more" or "what about that set" — refer back to what was said earlier.
 - Always respond in the same language as the user's question (Hebrew → Hebrew, English → English).
 - Be specific and direct. Give real set numbers, prices, and names — not vague answers.
+- Structure: start with a short direct answer (1–3 sentences), then add bullets or details only if needed.
 - When asked about prices, search for current data from BrickLink, eBay, and Amazon.
 - When app data is provided, mention the specific user selling a set and compare to market price.
 - If the user asks a follow-up question, treat it in full context of the ongoing conversation.
 - Keep responses concise but complete. Use bullet points for lists.
 - Never say "I don't have access to real-time data" — you do, via Google Search.`;
 
+/** פחות "הזיות", תשובות יותר עקביות — בלי עוד קריאות API */
+const CHAT_GENERATION = {
+  temperature: 0.42,
+  topP: 0.88,
+  /** מגביל פלט ארוך מדי = פחות טוקני פלט ועלות */
+  maxOutputTokens: 1408,
+} as const;
+
+/** רק 6 סבבים אחרונים (12 הודעות) — פחות טוקנים בקלט, פחות רעש, אותה קריאה אחת */
+const MAX_HISTORY_MESSAGES = 12;
+
 export class AIService {
   private modelWithSearch = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
     tools: [{ googleSearch: {} } as any],
     systemInstruction: SYSTEM_PROMPT,
+    generationConfig: CHAT_GENERATION,
   });
 
   private model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
     systemInstruction: SYSTEM_PROMPT,
+    generationConfig: CHAT_GENERATION,
   });
 
   private requestCount = 0;
@@ -65,6 +79,21 @@ export class AIService {
       role: msg.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: msg.content }],
     }));
+  }
+
+  /** חיתוך היסטוריה: נשארים רק ההודעות האחרונות — חוסך טוקני קלט בלי קריאה נוספת */
+  private trimHistory(history: ChatMessage[]): ChatMessage[] {
+    if (history.length <= MAX_HISTORY_MESSAGES) return this.ensureHistoryStartsWithUser(history);
+    return this.ensureHistoryStartsWithUser(history.slice(-MAX_HISTORY_MESSAGES));
+  }
+
+  /** Gemini דורש שה-history יתחיל מ-user */
+  private ensureHistoryStartsWithUser(history: ChatMessage[]): ChatMessage[] {
+    let h = [...history];
+    while (h.length > 0 && h[0].role === 'assistant') {
+      h = h.slice(1);
+    }
+    return h;
   }
 
   async smartSearch(query: string, posts: { _id: unknown; text: string }[]): Promise<SearchResult[]> {
@@ -102,8 +131,8 @@ export class AIService {
 
     const activeModel = this.needsWebSearch(userMessage) ? this.modelWithSearch : this.model;
 
-    // Build Gemini history from all previous turns (exclude the current user message)
-    const geminiHistory = this.toGeminiHistory(history);
+    const trimmed = this.trimHistory(history);
+    const geminiHistory = this.toGeminiHistory(trimmed);
 
     // Append app context to the current message if available
     const fullMessage = appContext
