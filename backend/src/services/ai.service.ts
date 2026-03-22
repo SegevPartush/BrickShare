@@ -8,31 +8,34 @@ interface SearchResult {
   reason: string;
 }
 
-const SYSTEM_PROMPT = `You are a LEGO expert assistant for BrickShare, a social network for LEGO collectors.
-You have access to real-time Google Search to find current prices, availability and market trends.
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
-Your capabilities:
-- Search the web for current LEGO prices on BrickLink, eBay, Amazon, Walmart etc.
-- Compare prices across different platforms
-- Find rare/retired sets and their market value
-- Answer questions about users selling sets within our app (when app data is provided)
+const SYSTEM_PROMPT = `You are an expert LEGO assistant for BrickShare — a social network for LEGO collectors.
 
-Rules:
-- Always respond in Hebrew if the question is in Hebrew
-- When giving prices, search for real current data and cite the source platform
-- Be specific: give actual price ranges, not vague estimates
-- If app data shows a user selling a set, mention their username and compare to market price
-- Format answers clearly with bullet points when listing multiple items`;
+Your behavior:
+- Remember everything discussed in this conversation. If the user says "tell me more" or "what about that set" — refer back to what was said earlier.
+- Always respond in the same language as the user's question (Hebrew → Hebrew, English → English).
+- Be specific and direct. Give real set numbers, prices, and names — not vague answers.
+- When asked about prices, search for current data from BrickLink, eBay, and Amazon.
+- When app data is provided, mention the specific user selling a set and compare to market price.
+- If the user asks a follow-up question, treat it in full context of the ongoing conversation.
+- Keep responses concise but complete. Use bullet points for lists.
+- Never say "I don't have access to real-time data" — you do, via Google Search.`;
 
 export class AIService {
-  // מודל עם Google Search לשאלות מחיר ומידע חיצוני
   private modelWithSearch = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
     tools: [{ googleSearch: {} } as any],
+    systemInstruction: SYSTEM_PROMPT,
   });
 
-  // מודל רגיל לשאלות פנימיות (ללא חיפוש)
-  private model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  private model = genAI.getGenerativeModel({
+    model: 'gemini-2.5-flash',
+    systemInstruction: SYSTEM_PROMPT,
+  });
 
   private requestCount = 0;
   private lastResetTime = Date.now();
@@ -50,11 +53,18 @@ export class AIService {
     this.requestCount++;
   }
 
-  // מזהה אם השאלה דורשת חיפוש מחיר או מידע חיצוני
   private needsWebSearch(message: string): boolean {
-    const priceKeywords = ['מחיר', 'שווה', 'עולה', 'קונים', 'מוכרים', 'השוואה', 'bricklink', 'ebay', 'amazon', 'price', 'worth', 'cost', 'market', 'compare'];
+    const keywords = ['מחיר', 'שווה', 'עולה', 'קונים', 'מוכרים', 'השוואה', 'bricklink', 'ebay', 'amazon', 'price', 'worth', 'cost', 'market', 'compare', 'buy', 'sell'];
     const lower = message.toLowerCase();
-    return priceKeywords.some(kw => lower.includes(kw));
+    return keywords.some(kw => lower.includes(kw));
+  }
+
+  // Convert frontend history to Gemini format
+  private toGeminiHistory(history: ChatMessage[]) {
+    return history.map(msg => ({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.content }],
+    }));
   }
 
   async smartSearch(query: string, posts: { _id: unknown; text: string }[]): Promise<SearchResult[]> {
@@ -87,26 +97,28 @@ export class AIService {
     }
   }
 
-  async askAssistant(userMessage: string, appContext?: string): Promise<string> {
+  async askAssistant(userMessage: string, appContext?: string, history: ChatMessage[] = []): Promise<string> {
     this.checkRateLimit();
 
-    const contextSection = appContext
-      ? `\n\nנתונים מהאפליקציה שלנו (BrickShare):\n${appContext}\n\nהשתמש בנתונים אלו ובחיפוש רשת לתת תשובה מקיפה.`
-      : '';
-
-    const prompt = `${SYSTEM_PROMPT}${contextSection}\n\nUser: ${userMessage}\n\nAssistant:`;
-
-    // אם השאלה על מחירים - משתמשים במודל עם Google Search
     const activeModel = this.needsWebSearch(userMessage) ? this.modelWithSearch : this.model;
 
+    // Build Gemini history from all previous turns (exclude the current user message)
+    const geminiHistory = this.toGeminiHistory(history);
+
+    // Append app context to the current message if available
+    const fullMessage = appContext
+      ? `${userMessage}\n\n[נתונים מ-BrickShare: ${appContext}]`
+      : userMessage;
+
     try {
-      const result = await activeModel.generateContent(prompt);
+      const chat = activeModel.startChat({ history: geminiHistory });
+      const result = await chat.sendMessage(fullMessage);
       return result.response.text().trim();
     } catch (error) {
       console.error('askAssistant failed:', error);
-      // fallback למודל רגיל אם Search נכשל
       try {
-        const fallback = await this.model.generateContent(prompt);
+        const chat = this.model.startChat({ history: geminiHistory });
+        const fallback = await chat.sendMessage(fullMessage);
         return fallback.response.text().trim();
       } catch {
         throw new Error('שגיאה בתקשורת עם מערכת ה-AI. אנא נסה שוב.');
@@ -117,9 +129,9 @@ export class AIService {
   async estimateSetPrice(setName: string, condition: 'new' | 'used' | 'sealed'): Promise<string> {
     this.checkRateLimit();
     const conditionMap: Record<string, string> = { new: 'חדש', used: 'משומש', sealed: 'אטום במארז מקורי' };
-    const prompt = `${SYSTEM_PROMPT}\n\nUser: חפש ומצא את המחיר הנוכחי של "${setName}" במצב ${conditionMap[condition]} ב-BrickLink, eBay ו-Amazon. הצג השוואת מחירים ומגמת שוק.\n\nAssistant:`;
+    const chat = this.modelWithSearch.startChat();
     try {
-      const result = await this.modelWithSearch.generateContent(prompt);
+      const result = await chat.sendMessage(`חפש ומצא את המחיר הנוכחי של "${setName}" במצב ${conditionMap[condition]} ב-BrickLink, eBay ו-Amazon. הצג השוואת מחירים ומגמת שוק.`);
       return result.response.text().trim();
     } catch (error) {
       console.error('estimateSetPrice failed:', error);
@@ -129,9 +141,9 @@ export class AIService {
 
   async findSets(criteria: string): Promise<string> {
     this.checkRateLimit();
-    const prompt = `${SYSTEM_PROMPT}\n\nUser: חפש וצא 3-5 סטי LEGO לפי: ${criteria}. כלול מספר סט, תיאור, מחיר נוכחי ממקורות אמיתיים.\n\nAssistant:`;
+    const chat = this.modelWithSearch.startChat();
     try {
-      const result = await this.modelWithSearch.generateContent(prompt);
+      const result = await chat.sendMessage(`חפש וצא 3-5 סטי LEGO לפי: ${criteria}. כלול מספר סט, תיאור, מחיר נוכחי ממקורות אמיתיים.`);
       return result.response.text().trim();
     } catch (error) {
       console.error('findSets failed:', error);

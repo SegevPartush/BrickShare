@@ -49,21 +49,27 @@ export default function AIChatWidget() {
     if (!userMessage || loading) return;
 
     setInput('');
-    setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
+    const updatedMessages: Message[] = [...messages, { role: 'user', content: userMessage }];
+    setMessages(updatedMessages);
     setLoading(true);
 
     try {
       const token = await getValidToken();
-      
+
+      // Send full conversation history (all turns before the current message)
+      // Skip the welcome message (index 0 is always the assistant welcome)
+      const history = messages
+        .slice(1) // skip static welcome
+        .map(m => ({ role: m.role, content: m.content }));
+
       const doRequest = async (t: string) => fetch('/api/ai/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}) },
-        body: JSON.stringify({ message: userMessage }),
+        body: JSON.stringify({ message: userMessage, history }),
       });
 
       let res = await doRequest(token);
 
-      // אם פג תוקף - מנסה לחדש ולשלוח שוב
       if (res.status === 401) {
         try {
           const refreshed = await refresh();
