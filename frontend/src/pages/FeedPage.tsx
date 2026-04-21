@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ShellLayout from '../components/layout/ShellLayout';
 import PostCard from '../components/posts/PostCard';
 import Card from '../components/ui/Card';
@@ -7,66 +7,6 @@ import CreateBuildModal from '../components/posts/CreateBuildModal';
 import { useAuth } from '../context/AuthContext';
 import { Post } from '../types';
 import * as api from '../services/api';
-
-// Sponsored/ad posts data
-const sponsoredAds = [
-  {
-    id: 'ad-1',
-    brand: 'LEGO Official',
-    handle: '@lego',
-    text: '🧱 NEW DROP: Technic Bugatti Bolide – 905 pieces of pure speed. Available now at LEGO.com. Use code BRICK10 for 10% off!',
-    tag: 'Sponsored',
-    cta: 'Shop Now',
-    url: 'https://www.lego.com',
-  },
-  {
-    id: 'ad-2',
-    brand: 'BrickLink',
-    handle: '@bricklink',
-    text: '🔍 Find rare LEGO parts, minifigs and sets from collectors worldwide. The world\'s largest LEGO marketplace.',
-    tag: 'Promoted',
-    cta: 'Explore',
-    url: 'https://www.bricklink.com',
-  },
-  {
-    id: 'ad-3',
-    brand: 'Rebrickable',
-    handle: '@rebrickable',
-    text: '🔧 Build something new with the sets you already own! Rebrickable shows you thousands of MOC designs using your existing pieces.',
-    tag: 'Sponsored',
-    cta: 'Try Free',
-    url: 'https://rebrickable.com',
-  },
-];
-
-function SponsoredPost() {
-  const ad = sponsoredAds[Math.floor(Math.random() * sponsoredAds.length)];
-  return (
-    <div className="border-b border-[#2f3336] px-4 py-3 hover:bg-white/[0.02] transition-colors">
-      <div className="flex gap-3">
-        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#1d9bf0] to-[#38bdf8] flex items-center justify-center shrink-0 text-white font-bold text-[15px]">
-          {ad.brand[0]}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="font-bold text-[15px]">{ad.brand}</span>
-            <span className="text-[#71767b] text-[14px]">{ad.handle}</span>
-            <span className="text-[11px] text-[#71767b] border border-[#2f3336] rounded px-1.5 py-0.5 ml-1">{ad.tag}</span>
-          </div>
-          <p className="text-[15px] leading-relaxed mt-1 text-white">{ad.text}</p>
-          <a
-            href={ad.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block mt-3 px-4 py-1.5 border border-[#1d9bf0] text-[#1d9bf0] rounded-full text-[14px] font-bold hover:bg-[#1d9bf0]/10 transition-colors"
-          >
-            {ad.cta} →
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // Loading skeleton post
 function SkeletonPost() {
@@ -96,6 +36,9 @@ export default function FeedPage() {
   // פוסטים וטעינה
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   // יצירת פוסט חדש
   const [newPostText, setNewPostText] = useState('');
@@ -107,11 +50,13 @@ export default function FeedPage() {
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
 
   // טעינת פוסטים מהשרת
-  async function loadPosts() {
+  async function loadPosts(pageNum: number = 1, append: boolean = false) {
+    if (loading) return;
     setLoading(true);
     try {
-      const data = await api.getPosts({ page: 1, limit: 20 });
-      setPosts(data.posts || []);
+      const data = await api.getPosts({ page: pageNum, limit: 10 });
+      setPosts(prev => append ? [...prev, ...(data.posts || [])] : (data.posts || []));
+      setHasMore(pageNum < data.totalPages);
     } catch (e) {
       console.error('שגיאה בטעינת פוסטים:', e);
     } finally {
@@ -120,9 +65,24 @@ export default function FeedPage() {
   }
 
   // טעינה ראשונית
+  useEffect(() => { loadPosts(1, false); }, []);
+
+  // Infinite scroll
   useEffect(() => {
-    loadPosts();
-  }, []);
+    if (!bottomRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && hasMore && !loading) {
+          const nextPage = page + 1;
+          setPage(nextPage);
+          loadPosts(nextPage, true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(bottomRef.current);
+    return () => observer.disconnect();
+  }, [page, hasMore, loading]);
 
   // טעינת משתמשים מומלצים
   useEffect(() => {
@@ -139,7 +99,9 @@ export default function FeedPage() {
       await api.createPost({ accessToken, text: newPostText.trim(), imageFile: newPostImage });
       setNewPostText('');
       setNewPostImage(null);
-      await loadPosts();
+      setPage(1);
+      setHasMore(true);
+      await loadPosts(1, false);
     } catch (e) {
       console.error('שגיאה ביצירת פוסט:', e);
     } finally {
@@ -179,40 +141,6 @@ export default function FeedPage() {
       });
     } catch { /* שקט */ }
   }
-
-  // Demo posts shown when no real posts exist
-  const demoPosts: Post[] = useMemo(() => [
-    {
-      _id: 'demo-1',
-      text: 'Just finished the Millennium Falcon UCS! 7,541 pieces and 18 hours of building 🚀 Most impressive set I\'ve ever built',
-      image: '',
-      createdAt: new Date(Date.now() - 10800000).toISOString(),
-      author: { username: 'sarah_builds', email: 'sarah@demo.local' },
-      likes: [],
-      commentCount: 23,
-    },
-    {
-      _id: 'demo-2',
-      text: 'Looking to trade parts! I have lots of spare Technic pieces, looking for Star Wars Minifigs 🔵🟡',
-      image: '',
-      createdAt: new Date(Date.now() - 21600000).toISOString(),
-      author: { username: 'dani_technic', email: 'dani@demo.local' },
-      likes: [],
-      commentCount: 18,
-    },
-    {
-      _id: 'demo-3',
-      text: 'Tokyo Skyline Architecture just arrived! One of the most beautiful sets released this year 🗼',
-      image: '',
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-      author: { username: 'michal_moc', email: 'michal@demo.local' },
-      likes: [],
-      commentCount: 7,
-    },
-  ], []);
-
-  // הפוסטים שמוצגים - מהשרת או דמו
-  const displayedPosts = posts.length > 0 ? posts : demoPosts;
 
   // Right panel - Trending + suggested users
   const rightPanel = (
@@ -364,40 +292,42 @@ export default function FeedPage() {
         {createOpen && (
           <CreateBuildModal
             onClose={() => setCreateOpen(false)}
-            onCreated={() => { setCreateOpen(false); loadPosts(); }}
+            onCreated={() => { setCreateOpen(false); setPage(1); setHasMore(true); loadPosts(1, false); }}
           />
         )}
 
-        {/* Sponsored post - shown after 2nd real post */}
-        {!loading && displayedPosts.length > 0 && <SponsoredPost />}
-
         {/* Posts list */}
-        {loading ? (
+        {loading && posts.length === 0 ? (
           <>
             <SkeletonPost />
             <SkeletonPost />
             <SkeletonPost />
           </>
         ) : (
-          displayedPosts.map((post, idx) => (
-            <React.Fragment key={post._id}>
-              <PostCard
-                post={post}
-                currentUserId={currentUserId}
-                onToggleLike={handleLike}
-                onDeleted={handlePostDeleted}
-                onEdited={handlePostEdited}
-              />
-              {/* Insert sponsored post every 5 posts */}
-              {(idx + 1) % 5 === 0 && <SponsoredPost />}
-            </React.Fragment>
+          posts.map((post) => (
+            <PostCard
+              key={post._id}
+              post={post}
+              currentUserId={currentUserId}
+              onToggleLike={handleLike}
+              onDeleted={handlePostDeleted}
+              onEdited={handlePostEdited}
+            />
           ))
         )}
 
-        {!loading && displayedPosts.length === 0 && (
+        {!loading && posts.length === 0 && (
           <div className="p-12 text-center text-[#71767b]">
             No posts yet. Be the first to share! 🧱
           </div>
+        )}
+
+        <div ref={bottomRef} className="h-10" />
+        {loading && posts.length > 0 && (
+          <div className="py-4 text-center text-[#71767b] text-[14px]">Loading more builds...</div>
+        )}
+        {!hasMore && posts.length > 0 && (
+          <div className="py-6 text-center text-[#71767b] text-[14px] border-t border-[#2f3336]">You've seen all the builds! 🧱</div>
         )}
       </div>
     </ShellLayout>

@@ -28,5 +28,7 @@ const commentSchema = new Schema<IComment>({
   }
 });
 
+commentSchema.index({ post: 1, createdAt: -1 });
+
 const Comment: Model<IComment> = mongoose.model<IComment>('Comment', commentSchema);
 export default Comment;

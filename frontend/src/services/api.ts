@@ -142,3 +142,9 @@ export async function addComment(payload: { accessToken: string; postId: string;
   );
   return res.data.comment;
 }
+
+export async function deleteComment(payload: { accessToken: string; commentId: string }) {
+  await api.delete(`/api/comments/${payload.commentId}`, {
+    headers: { Authorization: `Bearer ${payload.accessToken}` }
+  });
+}
