@@ -1,4 +1,3 @@
-import '../types/express-augment';
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Post from '../models/post.model';
@@ -204,25 +203,24 @@ export const deletePost = async (req: Request, res: Response): Promise<Response 
 
 export const toggleLike = async (req: Request, res: Response): Promise<Response | void> => {
   try {
-    const post = await Post.findById(req.params.id);
+    const userId = new mongoose.Types.ObjectId(req.userId as string);
+    const postId = req.params.id;
+
+    const post = await Post.findById(postId);
     if (!post) {
       return res.status(404).json({ message: 'Post not found' });
     }
 
-    const userId = req.userId as string;
-    const likeIndex = post.likes.findIndex((id) => id.toString() === userId);
+    const alreadyLiked = post.likes.some((id) => id.toString() === req.userId);
+    const updatedPost = await Post.findByIdAndUpdate(
+      postId,
+      alreadyLiked ? { $pull: { likes: userId } } : { $addToSet: { likes: userId } },
+      { new: true }
+    )
+      .populate('author', 'username profileImage')
+      .populate('likes', 'username');
 
-    if (likeIndex > -1) {
-      post.likes.splice(likeIndex, 1);
-    } else {
-      post.likes.push(new mongoose.Types.ObjectId(userId));
-    }
-
-    await post.save();
-    await post.populate('author', 'username profileImage');
-    await post.populate('likes', 'username');
-
-    res.json({ post, liked: likeIndex === -1 });
+    res.json({ post: updatedPost, liked: !alreadyLiked });
   } catch (error) {
     res.status(500).json({
       message: 'Failed to toggle like',

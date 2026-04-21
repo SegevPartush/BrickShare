@@ -1,7 +1,7 @@
-import '../types/express-augment';
 import { Request, Response } from 'express';
 import User from '../models/user.model';
 import Post from '../models/post.model';
+import Comment from '../models/comment.model';
 
 export const getUserProfile = async (req: Request, res: Response): Promise<Response | void> => {
   try {
@@ -83,7 +83,14 @@ export const getUserPosts = async (req: Request, res: Response): Promise<Respons
       .populate('author', 'username profileImage')
       .sort({ createdAt: -1 });
 
-    res.json({ posts });
+    const postsWithComments = await Promise.all(
+      posts.map(async (post) => {
+        const commentCount = await Comment.countDocuments({ post: post._id });
+        return { ...post.toObject(), commentCount };
+      })
+    );
+
+    res.json({ posts: postsWithComments });
   } catch (error) {
     res.status(500).json({
       message: 'Failed to get user posts',

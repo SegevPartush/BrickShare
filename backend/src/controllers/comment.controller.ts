@@ -1,4 +1,3 @@
-import '../types/express-augment';
 import { Request, Response } from 'express';
 import Comment from '../models/comment.model';
 import Post from '../models/post.model';
