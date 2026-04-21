@@ -7,6 +7,22 @@ import { updateProfileValidator } from '../validators/user.validators';
 
 const router = Router();
 
+/**
+ * @swagger
+ * /api/users:
+ *   get:
+ *     summary: Get suggested users to follow
+ *     tags: [Users]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 5
+ *     responses:
+ *       200:
+ *         description: List of suggested users
+ */
 router.get('/', getSuggestedUsers);
 
 /**
@@ -72,7 +88,49 @@ router.put('/:id', authMiddleware, upload.fields([{ name: 'profileImage', maxCou
  *         description: List of user posts
  */
 router.get('/:id/posts', getUserPosts);
+
+/**
+ * @swagger
+ * /api/users/{id}/followers:
+ *   get:
+ *     summary: Get user followers
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of followers
+ *       404:
+ *         description: User not found
+ */
 router.get('/:id/followers', authMiddleware, getFollowers);
+
+/**
+ * @swagger
+ * /api/users/{id}/following:
+ *   get:
+ *     summary: Get users this user follows
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of followed users
+ *       404:
+ *         description: User not found
+ */
 router.get('/:id/following', authMiddleware, getFollowing);
 
 export default router;
