@@ -3,11 +3,72 @@ import ShellLayout from '../components/layout/ShellLayout';
 import PostCard from '../components/posts/PostCard';
 import Card from '../components/ui/Card';
 import Avatar from '../components/ui/Avatar';
+import CreateBuildModal from '../components/posts/CreateBuildModal';
 import { useAuth } from '../context/AuthContext';
 import { Post } from '../types';
 import * as api from '../services/api';
 
-// קומפוננט שלד לטעינה
+// Sponsored/ad posts data
+const sponsoredAds = [
+  {
+    id: 'ad-1',
+    brand: 'LEGO Official',
+    handle: '@lego',
+    text: '🧱 NEW DROP: Technic Bugatti Bolide – 905 pieces of pure speed. Available now at LEGO.com. Use code BRICK10 for 10% off!',
+    tag: 'Sponsored',
+    cta: 'Shop Now',
+    url: 'https://www.lego.com',
+  },
+  {
+    id: 'ad-2',
+    brand: 'BrickLink',
+    handle: '@bricklink',
+    text: '🔍 Find rare LEGO parts, minifigs and sets from collectors worldwide. The world\'s largest LEGO marketplace.',
+    tag: 'Promoted',
+    cta: 'Explore',
+    url: 'https://www.bricklink.com',
+  },
+  {
+    id: 'ad-3',
+    brand: 'Rebrickable',
+    handle: '@rebrickable',
+    text: '🔧 Build something new with the sets you already own! Rebrickable shows you thousands of MOC designs using your existing pieces.',
+    tag: 'Sponsored',
+    cta: 'Try Free',
+    url: 'https://rebrickable.com',
+  },
+];
+
+function SponsoredPost() {
+  const ad = sponsoredAds[Math.floor(Math.random() * sponsoredAds.length)];
+  return (
+    <div className="border-b border-[#2f3336] px-4 py-3 hover:bg-white/[0.02] transition-colors">
+      <div className="flex gap-3">
+        <div className="w-11 h-11 rounded-full bg-gradient-to-br from-[#1d9bf0] to-[#38bdf8] flex items-center justify-center shrink-0 text-white font-bold text-[15px]">
+          {ad.brand[0]}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-bold text-[15px]">{ad.brand}</span>
+            <span className="text-[#71767b] text-[14px]">{ad.handle}</span>
+            <span className="text-[11px] text-[#71767b] border border-[#2f3336] rounded px-1.5 py-0.5 ml-1">{ad.tag}</span>
+          </div>
+          <p className="text-[15px] leading-relaxed mt-1 text-white">{ad.text}</p>
+          <a
+            href={ad.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block mt-3 px-4 py-1.5 border border-[#1d9bf0] text-[#1d9bf0] rounded-full text-[14px] font-bold hover:bg-[#1d9bf0]/10 transition-colors"
+          >
+            {ad.cta} →
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Loading skeleton post
 function SkeletonPost() {
   return (
     <div className="border-b border-[#2f3336] p-4 animate-pulse">
@@ -30,6 +91,7 @@ export default function FeedPage() {
 
   // טאב פעיל - הפיד או בניות מומלצות
   const [activeTab, setActiveTab] = useState<'feed' | 'recommended'>('feed');
+  const [createOpen, setCreateOpen] = useState(false);
 
   // פוסטים וטעינה
   const [posts, setPosts] = useState<Post[]>([]);
@@ -97,6 +159,14 @@ export default function FeedPage() {
     }
   }
 
+  function handlePostDeleted(postId: string) {
+    setPosts(prev => prev.filter(p => p._id !== postId));
+  }
+
+  function handlePostEdited(postId: string, newText: string) {
+    setPosts(prev => prev.map(p => p._id === postId ? { ...p, text: newText } : p));
+  }
+
   // עקוב / הפסק לעקוב
   async function handleFollow(targetUserId: string) {
     if (!accessToken) return;
@@ -110,11 +180,11 @@ export default function FeedPage() {
     } catch { /* שקט */ }
   }
 
-  // פוסטים לדוגמה כשאין פוסטים אמיתיים
+  // Demo posts shown when no real posts exist
   const demoPosts: Post[] = useMemo(() => [
     {
       _id: 'demo-1',
-      text: 'סיימתי את ה-Millennium Falcon UCS! 7,541 חלקים ו-18 שעות בניה 🚀 הכי מרשים שבניתי עד עכשיו',
+      text: 'Just finished the Millennium Falcon UCS! 7,541 pieces and 18 hours of building 🚀 Most impressive set I\'ve ever built',
       image: '',
       createdAt: new Date(Date.now() - 10800000).toISOString(),
       author: { username: 'sarah_builds', email: 'sarah@demo.local' },
@@ -123,7 +193,7 @@ export default function FeedPage() {
     },
     {
       _id: 'demo-2',
-      text: 'מישהו מחפש להחליף חלקים? יש לי הרבה חלקי Technic עודפים, מחפש Star Wars Minifigs 🔵🟡',
+      text: 'Looking to trade parts! I have lots of spare Technic pieces, looking for Star Wars Minifigs 🔵🟡',
       image: '',
       createdAt: new Date(Date.now() - 21600000).toISOString(),
       author: { username: 'dani_technic', email: 'dani@demo.local' },
@@ -132,7 +202,7 @@ export default function FeedPage() {
     },
     {
       _id: 'demo-3',
-      text: 'הזמנתי את Tokyo Skyline Architecture! אחד הסטים הכי יפים שיצאו השנה לדעתי 🗼',
+      text: 'Tokyo Skyline Architecture just arrived! One of the most beautiful sets released this year 🗼',
       image: '',
       createdAt: new Date(Date.now() - 86400000).toISOString(),
       author: { username: 'michal_moc', email: 'michal@demo.local' },
@@ -144,10 +214,10 @@ export default function FeedPage() {
   // הפוסטים שמוצגים - מהשרת או דמו
   const displayedPosts = posts.length > 0 ? posts : demoPosts;
 
-  // פאנל ימני - Trending + משתמשים מומלצים
+  // Right panel - Trending + suggested users
   const rightPanel = (
     <div className="space-y-4">
-      {/* כרטיס פרופיל */}
+      {/* Profile card */}
       {user ? (
         <Card className="p-4">
           <div className="flex items-center gap-3 mb-3">
@@ -157,22 +227,22 @@ export default function FeedPage() {
               <div className="text-[13px] text-[#71767b] truncate">{user.email}</div>
             </div>
           </div>
-          <button
-            onClick={() => { logout(); window.location.href = '/login'; }}
-            className="w-full py-1.5 text-[13px] font-semibold text-[#71767b] hover:text-white border border-[#2f3336] rounded-full transition-colors"
+          <a
+            href="/profile"
+            className="block w-full py-1.5 text-[13px] font-semibold text-center text-white border border-[#2f3336] rounded-full hover:bg-white/5 transition-colors"
           >
-            התנתק
-          </button>
+            View Profile
+          </a>
         </Card>
       ) : (
         <Card className="p-4">
-          <div className="font-bold text-[18px] mb-1">הצטרף לקהילה</div>
-          <div className="text-[13px] text-[#71767b] mb-3">שתף בניות וגלה סטים חדשים</div>
+          <div className="font-bold text-[18px] mb-1">Join the community</div>
+          <div className="text-[13px] text-[#71767b] mb-3">Share builds and discover new sets</div>
           <button
             onClick={() => { window.location.href = '/login'; }}
             className="w-full py-2 bg-gradient-to-r from-[#1d9bf0] to-[#38bdf8] text-white font-bold rounded-full text-[15px] hover:shadow-lg transition-all"
           >
-            הירשם עכשיו
+            Sign Up
           </button>
         </Card>
       )}
@@ -183,9 +253,9 @@ export default function FeedPage() {
           <div className="font-extrabold text-[20px]">🔥 Trending Sets</div>
         </div>
         {[
-          { category: 'LEGO Icons', title: 'Millennium Falcon UCS', count: '156 בניות' },
-          { category: 'LEGO Technic', title: 'Ferrari Daytona SP3', count: '89 בניות' },
-          { category: 'LEGO Architecture', title: 'Tokyo Skyline', count: '134 בניות' },
+          { category: 'LEGO Icons', title: 'Millennium Falcon UCS', count: '156 builds' },
+          { category: 'LEGO Technic', title: 'Ferrari Daytona SP3', count: '89 builds' },
+          { category: 'LEGO Architecture', title: 'Tokyo Skyline', count: '134 builds' },
         ].map((item, i, arr) => (
           <div
             key={item.title}
@@ -198,10 +268,10 @@ export default function FeedPage() {
         ))}
       </Card>
 
-      {/* אספנים מומלצים */}
+      {/* Suggested collectors */}
       <Card className="overflow-hidden">
         <div className="px-4 py-3 border-b border-[#2f3336]">
-          <div className="font-extrabold text-[20px]">אספנים מומלצים</div>
+          <div className="font-extrabold text-[20px]">Who to Follow</div>
         </div>
         {(suggestedUsers.length > 0 ? suggestedUsers : [
           { _id: 'u1', username: 'sarah_builds' },
@@ -209,7 +279,7 @@ export default function FeedPage() {
           { _id: 'u3', username: 'michal_moc' },
         ]).map((u: any, i, arr) => {
           const uid = u.id || u._id;
-          const name = u.username || 'אספן';
+          const name = u.username || 'collector';
           const isFollowed = followingIds.has(uid);
           return (
             <div
@@ -221,7 +291,7 @@ export default function FeedPage() {
                   <Avatar name={name} imageUrl={u.profileImage} size={44} />
                   <div>
                     <div className="font-bold text-[15px]">@{name}</div>
-                    <div className="text-[12px] text-[#71767b]">אספן לגו</div>
+                    <div className="text-[12px] text-[#71767b]">LEGO collector</div>
                   </div>
                 </div>
                 <button
@@ -233,7 +303,7 @@ export default function FeedPage() {
                       : 'bg-white text-black hover:bg-gray-200'
                   }`}
                 >
-                  {isFollowed ? 'עוקב' : 'עקוב'}
+                  {isFollowed ? 'Following' : 'Follow'}
                 </button>
               </div>
             </div>
@@ -246,18 +316,13 @@ export default function FeedPage() {
   return (
     <ShellLayout title="קהילת אספני הלגו" rightPanel={rightPanel}>
       <div>
-        {/* הדר קבוע עם טאבים */}
+        {/* Sticky header with tabs */}
         <div className="sticky top-0 bg-black/85 backdrop-blur-xl border-b border-[#2f3336] z-10">
-          <div className="px-4 pt-3 pb-0">
-            <div className="font-extrabold text-[20px]">קהילת אספני הלגו</div>
-            <div className="text-[13px] text-[#71767b] mt-0.5 mb-3">Building Dreams Together</div>
-          </div>
-
-          {/* טאבים */}
+          {/* Tabs */}
           <div className="flex">
             {([
-              { key: 'feed', label: 'הפיד' },
-              { key: 'recommended', label: 'בניות מומלצות' },
+              { key: 'feed', label: 'For You' },
+              { key: 'recommended', label: 'Following' },
             ] as const).map(({ key, label }) => (
               <button
                 key={key}
@@ -275,60 +340,38 @@ export default function FeedPage() {
           </div>
         </div>
 
-        {/* Post Composer - כתיבת פוסט חדש */}
+        {/* Composer trigger */}
         {isSignedIn && (
           <div className="border-b border-[#2f3336] px-4 py-3">
-            <div className="flex gap-3">
+            <button
+              onClick={() => setCreateOpen(true)}
+              className="w-full flex items-center gap-3 group"
+            >
               <Avatar name={user?.username || user?.email} imageUrl={user?.profileImage} size={44} />
-              <div className="flex-1">
-                <textarea
-                  className="w-full bg-transparent text-[20px] outline-none resize-none placeholder-[#71767b] min-h-[80px]"
-                  placeholder="שתף את הבניה האחרונה שלך..."
-                  value={newPostText}
-                  onChange={e => setNewPostText(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && e.ctrlKey) handleCreatePost();
-                  }}
-                />
-
-                {/* כפתורי תחתית ה-composer */}
-                <div className="flex items-center justify-between pt-3 border-t border-[#2f3336]">
-                  {/* כפתור העלאת תמונה */}
-                  <label className="w-9 h-9 rounded-full flex items-center justify-center text-[#1d9bf0] hover:bg-[#1d9bf0]/10 transition-colors cursor-pointer">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="3" width="18" height="18" rx="2" />
-                      <circle cx="8.5" cy="8.5" r="1.5" />
-                      <polyline points="21 15 16 10 5 21" />
-                    </svg>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={e => setNewPostImage(e.target.files?.[0] || null)}
-                    />
-                  </label>
-
-                  <div className="flex items-center gap-3">
-                    {/* אינדיקטור תמונה נבחרה */}
-                    {newPostImage && (
-                      <span className="text-[13px] text-[#1d9bf0]">📎 {newPostImage.name}</span>
-                    )}
-                    {/* כפתור פרסום */}
-                    <button
-                      onClick={handleCreatePost}
-                      disabled={!newPostText.trim() || createBusy}
-                      className="px-4 py-2 bg-gradient-to-r from-[#1d9bf0] to-[#38bdf8] text-white font-bold rounded-full disabled:opacity-40 hover:shadow-lg transition-all text-[15px]"
-                    >
-                      {createBusy ? 'מפרסם...' : 'פרסם'}
-                    </button>
-                  </div>
-                </div>
+              <div className="flex-1 text-left bg-[#202327] hover:bg-[#2f3336] transition-colors rounded-full px-4 py-3 text-[16px] text-[#71767b]">
+                Share your latest LEGO build...
               </div>
-            </div>
+              <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: 'linear-gradient(135deg, #1d9bf0, #38bdf8)' }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+              </div>
+            </button>
           </div>
         )}
 
-        {/* רשימת הפוסטים */}
+        {createOpen && (
+          <CreateBuildModal
+            onClose={() => setCreateOpen(false)}
+            onCreated={() => { setCreateOpen(false); loadPosts(); }}
+          />
+        )}
+
+        {/* Sponsored post - shown after 2nd real post */}
+        {!loading && displayedPosts.length > 0 && <SponsoredPost />}
+
+        {/* Posts list */}
         {loading ? (
           <>
             <SkeletonPost />
@@ -336,20 +379,24 @@ export default function FeedPage() {
             <SkeletonPost />
           </>
         ) : (
-          displayedPosts.map(post => (
-            <PostCard
-              key={post._id}
-              post={post}
-              currentUserId={currentUserId}
-              onToggleLike={handleLike}
-            />
+          displayedPosts.map((post, idx) => (
+            <React.Fragment key={post._id}>
+              <PostCard
+                post={post}
+                currentUserId={currentUserId}
+                onToggleLike={handleLike}
+                onDeleted={handlePostDeleted}
+                onEdited={handlePostEdited}
+              />
+              {/* Insert sponsored post every 5 posts */}
+              {(idx + 1) % 5 === 0 && <SponsoredPost />}
+            </React.Fragment>
           ))
         )}
 
-        {/* הודעה כשאין פוסטים */}
         {!loading && displayedPosts.length === 0 && (
           <div className="p-12 text-center text-[#71767b]">
-            אין פוסטים עדיין. היה הראשון לשתף! 🧱
+            No posts yet. Be the first to share! 🧱
           </div>
         )}
       </div>

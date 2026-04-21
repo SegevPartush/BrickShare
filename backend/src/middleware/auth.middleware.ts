@@ -1,4 +1,3 @@
-import '../types/express-augment';
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../utils/jwt.utils';
 

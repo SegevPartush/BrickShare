@@ -1,5 +1,4 @@
-require('dotenv').config();
-import './types/express-augment';
+import 'dotenv/config';
 import path from 'path';
 import express from 'express';
 import mongoose from 'mongoose';
@@ -18,7 +17,7 @@ import followRoutes from './routes/follow.routes';
 import aiRoutes from './routes/ai.routes';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3000';
 
 // מסיר X-Powered-By ומוסיף headers אבטחה סטנדרטיים

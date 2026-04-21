@@ -148,9 +148,9 @@ export default function SearchPage() {
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="חפש אנשים..."
+              placeholder="Search people..."
               className="w-full bg-[#202327] border border-[#2f3336] rounded-full py-2.5 pr-10 pl-4 text-[15px] outline-none focus:border-[#1d9bf0] focus:bg-transparent transition-colors text-white placeholder-[#71767b]"
-              dir="rtl"
+              dir="auto"
             />
 
             {/* כפתור ניקוי */}
@@ -171,7 +171,7 @@ export default function SearchPage() {
         {/* כותרת הרשימה */}
         <div className="px-4 py-3">
           <div className="font-extrabold text-[20px]">
-            {query.trim() ? `תוצאות עבור "${query}"` : 'אנשים שאולי תכיר'}
+            {query.trim() ? `Results for "${query}"` : 'People you may know'}
           </div>
         </div>
 
@@ -195,7 +195,7 @@ export default function SearchPage() {
           <div>
             {displayList.length === 0 ? (
               <div className="px-4 py-12 text-center text-[#71767b]">
-                {query.trim() ? 'לא נמצאו משתמשים' : 'אין המלצות כרגע'}
+                {query.trim() ? 'No users found' : 'No suggestions yet'}
               </div>
             ) : (
               displayList.map(u => (

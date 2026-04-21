@@ -8,10 +8,7 @@ function BrandPanel() {
       style={{ background: 'linear-gradient(150deg, #0f1117 0%, #0d1f33 50%, #0a1628 100%)' }}>
       <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle, #1d9bf0 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
       <div className="relative z-10 flex items-center gap-3">
-        <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1d9bf0 0%, #38bdf8 100%)' }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="white"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-        </div>
-        <span className="text-2xl font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif", background: 'linear-gradient(135deg, #1d9bf0 0%, #38bdf8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>BrickShare</span>
+        <img src="/logo.png" alt="BrickShare" style={{ height: 48, width: 'auto' }} className="object-contain select-none" />
       </div>
       <div className="relative z-10 flex-1 flex flex-col justify-center py-12">
         <h1 className="text-4xl font-bold text-white leading-tight mb-4">

@@ -10,9 +10,10 @@ export interface User {
 
 export interface Post {
   _id: string;
+  title?: string;
   text: string;
   image?: string;
-  author: { username?: string; email?: string; profileImage?: string };
+  author: { _id?: string; username?: string; email?: string; profileImage?: string };
   likes: any[];
   commentCount?: number;
   retweets?: number;
@@ -31,4 +32,5 @@ export interface AuthContextType {
   refresh: () => Promise<any>;
   logout: () => void;
   setOAuthTokens: (tokens: { accessToken: string; refreshToken: string; userId: string }) => void;
+  getValidToken: () => Promise<string>;
 }

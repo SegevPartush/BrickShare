@@ -51,10 +51,12 @@ export async function updateProfile(payload: {
   userId: string;
   username?: string;
   profileImageFile?: File | null;
+  coverImageFile?: File | null;
 }) {
   const form = new FormData();
   if (payload.username !== undefined) form.append('username', payload.username);
   if (payload.profileImageFile) form.append('profileImage', payload.profileImageFile);
+  if (payload.coverImageFile) form.append('coverImage', payload.coverImageFile);
   const res = await api.put(`/api/users/${payload.userId}`, form, {
     headers: { Authorization: `Bearer ${payload.accessToken}` }
   });
@@ -107,4 +109,36 @@ export async function getFollowing(payload: { accessToken: string; targetUserId:
     headers: { Authorization: `Bearer ${payload.accessToken}` }
   });
   return res.data.following;
+}
+
+export async function updatePost(payload: { accessToken: string; postId: string; text: string }) {
+  const res = await api.put(`/api/posts/${payload.postId}`, { text: payload.text }, {
+    headers: { Authorization: `Bearer ${payload.accessToken}` }
+  });
+  return res.data.post;
+}
+
+export async function deletePost(payload: { accessToken: string; postId: string }) {
+  await api.delete(`/api/posts/${payload.postId}`, {
+    headers: { Authorization: `Bearer ${payload.accessToken}` }
+  });
+}
+
+export async function getUser(userId: string) {
+  const res = await api.get(`/api/users/${userId}`);
+  return res.data.user;
+}
+
+export async function getComments(postId: string) {
+  const res = await api.get(`/api/comments/posts/${postId}/comments`);
+  return res.data.comments || [];
+}
+
+export async function addComment(payload: { accessToken: string; postId: string; text: string }) {
+  const res = await api.post(
+    `/api/comments/posts/${payload.postId}/comments`,
+    { text: payload.text },
+    { headers: { Authorization: `Bearer ${payload.accessToken}` } }
+  );
+  return res.data.comment;
 }

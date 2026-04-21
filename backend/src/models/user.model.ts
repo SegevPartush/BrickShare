@@ -6,6 +6,7 @@ export interface IUser extends Document {
   email: string;
   password?: string;
   profileImage: string;
+  coverImage: string;
   googleId?: string;
   facebookId?: string;
   following: mongoose.Types.ObjectId[];
@@ -34,6 +35,10 @@ const userSchema = new Schema<IUser>({
     minlength: 6
   },
   profileImage: {
+    type: String,
+    default: ''
+  },
+  coverImage: {
     type: String,
     default: ''
   },

@@ -2,10 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
 const QUICK_ACTIONS = [
-  'מה הסט הכי חדש של Star Wars?',
+  'מי מוכר סטים של Star Wars?',
   'כמה שווה Millennium Falcon UCS?',
   'תמליץ לי על סטים עד 200$',
-  'מה ההבדל בין Technic ל-Creator?',
+  'מי מחפש Creator Expert?',
 ];
 
 const WELCOME_MESSAGE: Message = {
@@ -33,7 +33,7 @@ function TypingIndicator() {
 }
 
 export default function AIChatWidget() {
-  const { accessToken } = useAuth();
+  const { getValidToken, refresh } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState('');
@@ -49,18 +49,37 @@ export default function AIChatWidget() {
     if (!userMessage || loading) return;
 
     setInput('');
-    setMessages((prev) => [...prev, { role: 'user', content: userMessage }]);
+    const updatedMessages: Message[] = [...messages, { role: 'user', content: userMessage }];
+    setMessages(updatedMessages);
     setLoading(true);
 
     try {
-      const res = await fetch('/api/ai/ask', {
+      const token = await getValidToken();
+
+      // Send full conversation history (all turns before the current message)
+      // Skip the welcome message (index 0 is always the assistant welcome)
+      const history = messages
+        .slice(1) // skip static welcome
+        .map(m => ({ role: m.role, content: m.content }));
+
+      const doRequest = async (t: string) => fetch('/api/ai/ask', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-        },
-        body: JSON.stringify({ message: userMessage }),
+        headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: `Bearer ${t}` } : {}) },
+        body: JSON.stringify({ message: userMessage, history }),
       });
+
+      let res = await doRequest(token);
+
+      if (res.status === 401) {
+        try {
+          const refreshed = await refresh();
+          res = await doRequest(refreshed.accessToken);
+        } catch {
+          setMessages((prev) => [...prev, { role: 'assistant', content: 'הטוקן פג תוקף. אנא התחבר מחדש.' }]);
+          setLoading(false);
+          return;
+        }
+      }
 
       const data = await res.json();
 
@@ -127,10 +146,11 @@ export default function AIChatWidget() {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3" dir="rtl">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3" dir="auto">
           {messages.map((msg, idx) => (
             <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-start' : 'justify-end'}`}>
               <div
+                dir="auto"
                 className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed ${
                   msg.role === 'user' ? 'text-white' : 'bg-[#16181c] text-[#e7e9ea] border border-[#2f3336]'
                 }`}
@@ -145,7 +165,7 @@ export default function AIChatWidget() {
         </div>
 
         {showQuickActions && (
-          <div className="px-4 pb-3 space-y-1 flex-shrink-0" dir="rtl">
+          <div className="px-4 pb-3 space-y-1 flex-shrink-0" dir="auto">
             <div className="text-xs text-[#71767b] mb-1">שאלות מהירות:</div>
             {QUICK_ACTIONS.map((action) => (
               <button key={action} onClick={() => sendMessage(action)} className="w-full text-right text-xs text-[#1d9bf0] hover:bg-[#1d9bf0]/10 px-3 py-2 rounded-lg transition-colors border border-[#2f3336]">
@@ -155,7 +175,7 @@ export default function AIChatWidget() {
           </div>
         )}
 
-        <div className="p-3 border-t border-[#2f3336] flex-shrink-0" dir="rtl">
+        <div className="p-3 border-t border-[#2f3336] flex-shrink-0" dir="auto">
           <div className="flex gap-2 items-center">
             <input
               type="text"
@@ -164,6 +184,7 @@ export default function AIChatWidget() {
               onKeyDown={handleKeyDown}
               placeholder="שאל משהו על LEGO..."
               disabled={loading}
+              dir="auto"
               className="flex-1 bg-[#16181c] border border-[#2f3336] rounded-full px-4 py-2 text-sm text-[#e7e9ea] placeholder-[#71767b] outline-none focus:border-[#1d9bf0] transition-colors"
             />
             <button

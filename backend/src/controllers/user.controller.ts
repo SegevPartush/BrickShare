@@ -16,7 +16,10 @@ export const getUserProfile = async (req: Request, res: Response): Promise<Respo
         username: user.username,
         email: user.email,
         profileImage: user.profileImage,
-        createdAt: user.createdAt
+        coverImage: user.coverImage,
+        createdAt: user.createdAt,
+        followersCount: user.followers?.length ?? 0,
+        followingCount: user.following?.length ?? 0,
       }
     });
   } catch (error) {
@@ -34,11 +37,18 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<Re
     }
 
     const { username } = req.body;
-    const updateData: { username?: string; profileImage?: string } = {};
+    const updateData: { username?: string; profileImage?: string; coverImage?: string } = {};
 
     if (username) updateData.username = username;
-    if (req.file) {
+
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
+    if (files?.profileImage?.[0]) {
+      updateData.profileImage = `/uploads/profiles/${files.profileImage[0].filename}`;
+    } else if (req.file) {
       updateData.profileImage = `/uploads/profiles/${req.file.filename}`;
+    }
+    if (files?.coverImage?.[0]) {
+      updateData.coverImage = `/uploads/covers/${files.coverImage[0].filename}`;
     }
 
     const user = await User.findByIdAndUpdate(req.params.id, updateData, {
@@ -55,7 +65,8 @@ export const updateUserProfile = async (req: Request, res: Response): Promise<Re
         id: user._id,
         username: user.username,
         email: user.email,
-        profileImage: user.profileImage
+        profileImage: user.profileImage,
+        coverImage: user.coverImage,
       }
     });
   } catch (error) {

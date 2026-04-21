@@ -16,19 +16,19 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   {
-    to: '/feed', label: 'הפיד',
+    to: '/feed', label: 'Home',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
   },
   {
-    to: '/search', label: 'חיפוש',
+    to: '/search', label: 'Search',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
   },
   {
-    to: '/messages', label: 'הודעות',
+    to: '/messages', label: 'Messages',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
   },
   {
-    to: '/profile', label: 'פרופיל',
+    to: '/profile', label: 'Profile',
     icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   },
 ];
@@ -70,7 +70,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             className="w-full mt-1 px-3 py-2 text-white font-semibold text-[13px] rounded-xl transition-all hover:brightness-110 active:scale-95"
             style={{ background: 'linear-gradient(135deg, #1d9bf0 0%, #38bdf8 100%)', boxShadow: '0 2px 8px rgba(29,155,240,0.3)' }}
           >
-            + שתף בניה
+            + Share a Build
           </button>
         </nav>
 
