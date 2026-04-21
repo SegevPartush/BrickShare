@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import passport from 'passport';
-import { register, login, refresh, getMe, oauthCallback } from '../controllers/auth.controller';
+import { register, login, refresh, getMe, oauthCallback, logout } from '../controllers/auth.controller';
 import authMiddleware from '../middleware/auth.middleware';
 import validate from '../middleware/validate.middleware';
 import { registerValidator, loginValidator, refreshValidator } from '../validators/auth.validators';
@@ -218,5 +218,19 @@ router.post('/refresh', refreshValidator, validate, refresh);
  *         description: User not found
  */
 router.get('/me', authMiddleware, getMe);
+
+/**
+ * @swagger
+ * /api/auth/logout:
+ *   post:
+ *     summary: Logout user
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ */
+router.post('/logout', authMiddleware, logout);
 
 export default router;

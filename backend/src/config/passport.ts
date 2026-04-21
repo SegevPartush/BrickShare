@@ -16,7 +16,18 @@ async function findOrCreateOAuthUser(
 ): Promise<IUser> {
   const idField = provider === 'google' ? 'googleId' : 'facebookId';
   let user = await User.findOne({ [idField]: providerId });
-  if (user) return user;
+  if (user) {
+    // אם המשתמש כבר קיים אבל אין/יש תמונה חדשה מהפרוביידר,
+    // חשוב לעדכן כדי שלא נישאר עם profileImage ריק לעד.
+    if (profileImage && user.profileImage !== profileImage) {
+      user.profileImage = profileImage;
+    }
+    if (email && (!user.email || user.email !== email.toLowerCase())) {
+      user.email = email.toLowerCase();
+    }
+    await user.save();
+    return user;
+  }
 
   user = await User.findOne({ email: email?.toLowerCase() });
   if (user) {
@@ -44,9 +55,22 @@ async function findOrCreateOAuthUser(
   return newUser;
 }
 
+/** כתובת הבקאנד ל-OAuth redirect_uri — חייבת להתאים ל־Authorized redirect URIs ב-Google/Facebook. */
+const backendOrigin = process.env.BACKEND_PUBLIC_URL || `http://localhost:${process.env.PORT || 3001}`;
+
+function oauthCallbackUrl(envValue: string | undefined, path: string): string {
+  if (envValue && /^https?:\/\//i.test(envValue)) {
+    return envValue;
+  }
+  if (envValue?.startsWith('/')) {
+    return `${backendOrigin.replace(/\/$/, '')}${envValue}`;
+  }
+  return `${backendOrigin.replace(/\/$/, '')}${path}`;
+}
+
 const googleClientId = process.env.GOOGLE_CLIENT_ID;
 const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
-const googleCallbackURL = process.env.GOOGLE_CALLBACK_URL || '/api/auth/google/callback';
+const googleCallbackURL = oauthCallbackUrl(process.env.GOOGLE_CALLBACK_URL, '/api/auth/google/callback');
 
 if (googleClientId && googleClientSecret) {
   passport.use(
@@ -54,14 +78,15 @@ if (googleClientId && googleClientSecret) {
       {
         clientID: googleClientId,
         clientSecret: googleClientSecret,
-        callbackURL: googleCallbackURL,
-        scope: ['profile', 'email']
+        callbackURL: googleCallbackURL
       },
       async (_accessToken, _refreshToken, profile, done) => {
         try {
           const email = profile.emails?.[0]?.value;
           const displayName = profile.displayName || '';
-          const photo = profile.photos?.[0]?.value;
+          // ב-googles' passport response זה לרוב `value`, אבל לפעמים מתקבל `url`.
+          const photo0: any = profile.photos?.[0] as any;
+          const photo = photo0?.value || photo0?.url;
           const user = await findOrCreateOAuthUser(
             profile.id,
             'google',
@@ -80,7 +105,7 @@ if (googleClientId && googleClientSecret) {
 
 const facebookAppId = process.env.FACEBOOK_APP_ID;
 const facebookAppSecret = process.env.FACEBOOK_APP_SECRET;
-const facebookCallbackURL = process.env.FACEBOOK_CALLBACK_URL || '/api/auth/facebook/callback';
+const facebookCallbackURL = oauthCallbackUrl(process.env.FACEBOOK_CALLBACK_URL, '/api/auth/facebook/callback');
 
 if (facebookAppId && facebookAppSecret) {
   passport.use(
@@ -96,7 +121,8 @@ if (facebookAppId && facebookAppSecret) {
         try {
           const email = (profile.emails as { value: string }[])?.[0]?.value;
           const displayName = profile.displayName || '';
-          const photo = (profile.photos as { value: string }[])?.[0]?.value;
+          const photo0: any = (profile.photos as any[] | undefined)?.[0] as any;
+          const photo = photo0?.value || photo0?.url;
           const user = await findOrCreateOAuthUser(
             profile.id,
             'facebook',

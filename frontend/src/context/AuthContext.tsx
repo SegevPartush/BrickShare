@@ -31,8 +31,24 @@ export function AuthProvider({ children }: { children?: React.ReactNode }) {
         const me = await api.getMe(accessToken);
         setUser(me);
         localStorage.setItem(USER_KEY, JSON.stringify(me));
-      } catch {
-        // token invalid – keep UI functional
+      } catch (err) {
+        // token invalid – try refresh once, otherwise keep UI functional
+        // eslint-disable-next-line no-console
+        console.error('getMe failed:', err);
+        const storedRefresh = refreshToken || localStorage.getItem(REFRESH_KEY) || '';
+        if (!storedRefresh) return;
+        try {
+          const data = await api.refreshToken({ refreshToken: storedRefresh });
+          setAccessToken(data.accessToken);
+          setRefreshToken(data.refreshToken);
+          localStorage.setItem(ACCESS_KEY, data.accessToken);
+          localStorage.setItem(REFRESH_KEY, data.refreshToken);
+          const me = await api.getMe(data.accessToken);
+          setUser(me);
+          localStorage.setItem(USER_KEY, JSON.stringify(me));
+        } catch {
+          // ignore
+        }
       }
     }
     loadMe();
@@ -43,36 +59,41 @@ export function AuthProvider({ children }: { children?: React.ReactNode }) {
     return { Authorization: `Bearer ${accessToken}` };
   }, [accessToken]);
 
+  function saveSession(at: string, rt: string, u: User) {
+    setAccessToken(at);
+    setRefreshToken(rt);
+    setUser(u);
+    localStorage.setItem(ACCESS_KEY, at);
+    localStorage.setItem(REFRESH_KEY, rt);
+    localStorage.setItem(USER_KEY, JSON.stringify(u));
+  }
+
   async function register(payload: { username: string; email: string; password: string }) {
     const data = await api.register(payload);
-    setAccessToken(data.accessToken);
-    setRefreshToken(data.refreshToken);
-    setUser(data.user);
-    localStorage.setItem(ACCESS_KEY, data.accessToken);
-    localStorage.setItem(REFRESH_KEY, data.refreshToken);
-    localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    saveSession(data.accessToken, data.refreshToken, data.user);
     return data.user;
   }
 
   async function login(payload: { email: string; password: string }) {
     const data = await api.login(payload);
-    setAccessToken(data.accessToken);
-    setRefreshToken(data.refreshToken);
-    setUser(data.user);
-    localStorage.setItem(ACCESS_KEY, data.accessToken);
-    localStorage.setItem(REFRESH_KEY, data.refreshToken);
-    localStorage.setItem(USER_KEY, JSON.stringify(data.user));
+    saveSession(data.accessToken, data.refreshToken, data.user);
     return data.user;
   }
 
   function setOAuthTokens({ accessToken: at, refreshToken: rt, userId }: { accessToken: string; refreshToken: string; userId: string }) {
     const newUser: User = userId ? { id: userId, email: '' } : { email: '' };
-    setAccessToken(at);
-    setRefreshToken(rt);
-    setUser(newUser);
-    localStorage.setItem(ACCESS_KEY, at || '');
-    localStorage.setItem(REFRESH_KEY, rt || '');
-    localStorage.setItem(USER_KEY, JSON.stringify(newUser));
+    saveSession(at, rt, newUser);
+
+    // גם אם /api/auth/me נכשל (טוקן לא תקין/Expired),
+    // עדיין נוכל להציג תמונת פרופיל נכונה דרך /api/users/:id (לא דורש auth).
+    if (userId) {
+      api.getUser(userId)
+        .then((u) => {
+          setUser(u);
+          localStorage.setItem(USER_KEY, JSON.stringify(u));
+        })
+        .catch(() => {});
+    }
   }
 
   async function refresh() {
