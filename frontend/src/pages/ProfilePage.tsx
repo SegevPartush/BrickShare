@@ -16,15 +16,6 @@ interface ProfilePost {
   createdAt?: string;
 }
 
-// Rank system based on number of builds
-function getBuilderRank(builds: number): { label: string; color: string; icon: string } {
-  if (builds >= 100) return { label: 'Master Builder', color: '#f7c948', icon: '🏆' };
-  if (builds >= 50)  return { label: 'Senior Builder', color: '#1d9bf0', icon: '⭐' };
-  if (builds >= 20)  return { label: 'Builder',        color: '#00ba7c', icon: '🧱' };
-  if (builds >= 5)   return { label: 'Apprentice',     color: '#a855f7', icon: '🔧' };
-  return                    { label: 'Newcomer',        color: '#71767b', icon: '👋' };
-}
-
 // Full-screen post detail modal
 function BuildDetailModal({ post, onClose, onDeleted, onEdited, isOwner }: {
   post: ProfilePost;
@@ -175,12 +166,10 @@ function BuildDetailModal({ post, onClose, onDeleted, onEdited, isOwner }: {
   );
 }
 
-// Edit profile modal
+// Modal לעריכת פרופיל - מאפשר שינוי שם משתמש ותמונת פרופיל
 function EditProfileModal({ user, onClose, onSaved }: { user: any; onClose: () => void; onSaved: () => void }) {
   const { accessToken } = useAuth();
   const [username, setUsername] = useState(user?.username || '');
-  const [bio, setBio] = useState(user?.bio || '');
-  const [favoriteTheme, setFavoriteTheme] = useState(user?.favoriteTheme || '');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -213,21 +202,19 @@ function EditProfileModal({ user, onClose, onSaved }: { user: any; onClose: () =
             <Avatar name={username || user?.email} imageUrl={user?.profileImage} size={80} />
             <label className="text-[14px] font-bold text-[#1d9bf0] cursor-pointer hover:underline">
               Change photo
-              <input type="file" accept="image/*" className="hidden" onChange={e => setImageFile(e.target.files?.[0] || null)} />
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => setImageFile(e.target.files?.[0] || null)} />
             </label>
             {imageFile && <span className="text-[12px] text-[#71767b]">{imageFile.name}</span>}
           </div>
-          {[
-            { label: 'Username', value: username, set: setUsername, placeholder: 'username' },
-            { label: 'Bio', value: bio, set: setBio, placeholder: 'Tell the community about your builds...' },
-            { label: 'Favorite LEGO Theme', value: favoriteTheme, set: setFavoriteTheme, placeholder: 'e.g. Star Wars, Technic...' },
-          ].map(({ label, value, set, placeholder }) => (
-            <div key={label} className="border-b border-[#2f3336] pb-4">
-              <label className="block text-[12px] font-semibold text-[#1d9bf0] mb-1">{label}</label>
-              <input value={value} onChange={e => set(e.target.value)} placeholder={placeholder}
-                className="w-full bg-transparent text-[16px] text-white outline-none placeholder-[#4a4f55]" />
-            </div>
-          ))}
+          <div className="border-b border-[#2f3336] pb-4">
+            <label className="block text-[12px] font-semibold text-[#1d9bf0] mb-1">Username</label>
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="username"
+              className="w-full bg-transparent text-[16px] text-white outline-none placeholder-[#4a4f55]"
+            />
+          </div>
           {error && <div className="text-[13px] text-red-400">{error}</div>}
         </div>
       </div>
@@ -337,7 +324,6 @@ export default function ProfilePage() {
 
   const displayName = (profileUser?.username || profileUser?.email?.split('@')[0]) ?? 'User';
   const handle = '@' + displayName.toLowerCase().replace(/\s+/g, '_');
-  const rank = getBuilderRank(posts.length);
 
   return (
     <ShellLayout title="Profile">
@@ -418,12 +404,9 @@ export default function ProfilePage() {
         <div className="px-4 md:px-6">
           <div className="flex items-end justify-between -mt-12 md:-mt-14 mb-4">
             <div className="relative">
-              <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl border-4 border-black overflow-hidden bg-[#16181c]"
-                style={{ boxShadow: `0 0 0 3px ${rank.color}` }}>
+              <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl border-4 border-black overflow-hidden bg-[#16181c]">
                 <Avatar name={displayName} imageUrl={profileUser?.profileImage} size={112} />
               </div>
-              {/* Rank badge */}
-              <div className="absolute -bottom-2 -right-2 text-lg">{rank.icon}</div>
             </div>
 
             <div className="flex items-center gap-2 pb-1">
@@ -459,25 +442,10 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Name + rank */}
+          {/* שם + handle */}
           <div className="mb-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="font-extrabold text-[20px] text-white">{displayName}</div>
-              <span className="text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: `${rank.color}22`, color: rank.color, border: `1px solid ${rank.color}44` }}>
-                {rank.label}
-              </span>
-            </div>
+            <div className="font-extrabold text-[20px] text-white">{displayName}</div>
             <div className="text-[14px] text-[#71767b] mt-0.5">{handle}</div>
-            <div className="text-[15px] text-[#e7e9ea] mt-2 leading-relaxed">
-              🧱 LEGO collector & builder · Star Wars fan · Sharing builds since 2020
-            </div>
-            <div className="flex items-center gap-1.5 mt-1.5 text-[13px] text-[#71767b]">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-                <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-              </svg>
-              <span>Favorite theme: <span className="text-[#1d9bf0] font-medium">Star Wars</span></span>
-            </div>
           </div>
 
           {/* Stats row */}
