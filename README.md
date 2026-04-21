@@ -14,7 +14,7 @@ brickshare/
 │   │   ├── middleware/  # Custom middleware
 │   │   ├── services/    # Business logic
 │   │   ├── utils/       # Utility functions
-│   │   └── server.js    # Entry point
+│   │   └── server.ts    # Entry point
 │   └── package.json
 │
 └── frontend/        # React Application
@@ -39,6 +39,8 @@ brickshare/
 - כל ה-React UI, Components, Design
 
 ## התחלה מהירה
+
+**פורטים (ברירת מחדל):** הפרונט (React) על **3000**, הבקאנד על **3001** — כדי שלא יתנגשו. ב־`frontend/package.json` מוגדר `proxy` ל־3001.
 
 ### Backend
 ```bash

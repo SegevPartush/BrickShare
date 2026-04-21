@@ -1,54 +1,31 @@
-# Dependencies
 node_modules/
-package-lock.json
 
-# Environment variables (never commit secrets)
+# Backend build/data
+backend/data/
+backend/dist/
+backend/uploads/posts/
+backend/uploads/covers/
+backend/uploads/profiles/
+backend/public/
+
+# Frontend build
+frontend/build/
+
+# Environment variables
 .env
-.env.*
-!.env.example
-!**/.env.example
 .env.local
-.env.*.local
+.env.production
 
 # Logs
-logs
+logs/
 *.log
-npm-debug.log*
 
-# OS files
+# OS/IDE
 .DS_Store
 Thumbs.db
-
-# IDE
-.vscode/
 .idea/
-*.swp
-*.swo
+.vscode/
 
-# Build outputs
-dist/
-build/
-*.map
-
-# Frontend specific
-frontend/build/
-frontend/.env
-frontend/.env.local
-frontend/.env.development.local
-frontend/.env.test.local
-frontend/.env.production
-frontend/.env.production.local
-
-# Backend specific
-backend/backend/
-backend/node_modules/
-backend/.env
-backend/uploads/**/*
-!backend/uploads/**/.gitkeep
-backend/public/*
-!backend/public/.gitkeep
-backend/PROJECT_STATUS.md
-backend/data/
-
-# Local test frontend (never push - for testing only)
+# Misc
 local-test-app/
+*.zip
