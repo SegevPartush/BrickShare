@@ -1,4 +1,3 @@
-import '../types/express-augment';
 import { Request, Response } from 'express';
 import User, { IUser } from '../models/user.model';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt.utils';
@@ -142,4 +141,12 @@ export const oauthCallback = (req: Request, res: Response): void => {
     return;
   }
   oauthRedirect(req, res, user);
+};
+
+export const logout = async (req: Request, res: Response): Promise<Response | void> => {
+  try {
+    res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Logout failed' });
+  }
 };

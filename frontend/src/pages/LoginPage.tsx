@@ -46,7 +46,8 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
 
   function handleOAuth(provider: string) {
-    window.location.href = `http://localhost:3001/api/auth/${provider}`;
+    const backend = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    window.location.href = `${backend}/api/auth/${provider}`;
   }
 
   async function handleSubmit(e: React.FormEvent) {
