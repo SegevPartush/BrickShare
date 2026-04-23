@@ -71,8 +71,9 @@ export default function RegisterPage() {
   const [busy, setBusy] = useState(false);
 
   function handleOAuth(provider: string) {
-    const backend = process.env.REACT_APP_API_URL || 'http://localhost:3001';
-    window.location.href = `${backend}/api/auth/${provider}`;
+    // בפרודקשן הפרונט מוגש מאותו origin של ה-backend, אז כתובת יחסית עובדת.
+    // בפיתוח מקומי CRA proxy (ב-setupProxy/package.json) מעביר /api ל-4000.
+    window.location.href = `/api/auth/${provider}`;
   }
 
   const set = (field: keyof RegForm) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((s) => ({ ...s, [field]: e.target.value }));
