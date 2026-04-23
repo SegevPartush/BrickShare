@@ -1,6 +1,12 @@
 import multer, { FileFilterCallback } from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { Request } from 'express';
+
+// יוצר את תיקיות ההעלאה פעם אחת בטעינת המודול אם הן חסרות
+// (כי .gitignore מחריג את התוכן ולכן הן לא מגיעות לפרודקשן)
+const UPLOAD_DIRS = ['uploads/posts', 'uploads/profiles', 'uploads/covers'];
+UPLOAD_DIRS.forEach((dir) => fs.mkdirSync(dir, { recursive: true }));
 
 const storage = multer.diskStorage({
   destination: function (_req, file, cb) {
