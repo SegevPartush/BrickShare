@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 import Avatar from '../ui/Avatar';
 import { useAuth } from '../../context/AuthContext';
+import { useUnreadMessages } from '../../hooks/useUnreadMessages';
 
 const navItems = [
   {
@@ -30,6 +31,7 @@ interface Props {
 export default function LeftSidebar({ onShareBuild }: Props) {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const unreadMessages = useUnreadMessages();
 
   return (
     <aside className="hidden lg:flex flex-col h-screen sticky top-0 w-[260px] shrink-0 border-r border-[#2f3336] px-3 py-4">
@@ -57,8 +59,13 @@ export default function LeftSidebar({ onShareBuild }: Props) {
           >
             {({ isActive }) => (
               <>
-                <span className={`transition-colors ${isActive ? 'text-white' : 'text-[#e7e9ea] group-hover:text-white'}`}>
+                <span className={`relative transition-colors ${isActive ? 'text-white' : 'text-[#e7e9ea] group-hover:text-white'}`}>
                   {icon(isActive)}
+                  {to === '/messages' && unreadMessages > 0 && (
+                    <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow ring-2 ring-black">
+                      {unreadMessages > 99 ? '99+' : unreadMessages}
+                    </span>
+                  )}
                 </span>
                 <span>{label}</span>
               </>

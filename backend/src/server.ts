@@ -15,6 +15,7 @@ import postRoutes from './routes/post.routes';
 import commentRoutes from './routes/comment.routes';
 import followRoutes from './routes/follow.routes';
 import aiRoutes from './routes/ai.routes';
+import messageRoutes from './routes/message.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -41,6 +42,7 @@ app.use('/api/posts', postRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/follow', followRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/messages', messageRoutes);
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 

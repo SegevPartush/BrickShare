@@ -148,3 +148,35 @@ export async function deleteComment(payload: { accessToken: string; commentId: s
     headers: { Authorization: `Bearer ${payload.accessToken}` }
   });
 }
+
+// ===== Messages =====
+
+export async function sendMessage(payload: { accessToken: string; recipient: string; text: string }) {
+  const res = await api.post(
+    '/api/messages',
+    { recipient: payload.recipient, text: payload.text },
+    { headers: { Authorization: `Bearer ${payload.accessToken}` } }
+  );
+  return res.data.message;
+}
+
+export async function getConversations(accessToken: string) {
+  const res = await api.get('/api/messages', {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  return res.data.conversations || [];
+}
+
+export async function getThread(payload: { accessToken: string; userId: string }) {
+  const res = await api.get(`/api/messages/${payload.userId}`, {
+    headers: { Authorization: `Bearer ${payload.accessToken}` }
+  });
+  return res.data.messages || [];
+}
+
+export async function getUnreadMessagesCount(accessToken: string) {
+  const res = await api.get('/api/messages/unread/count', {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  return (res.data?.count as number) || 0;
+}
