@@ -1,170 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import ShellLayout from '../components/layout/ShellLayout';
 import Avatar from '../components/ui/Avatar';
 import CreateBuildModal from '../components/posts/CreateBuildModal';
+import PostCard from '../components/posts/PostCard';
 import { useAuth } from '../context/AuthContext';
+import { Post } from '../types';
 import * as api from '../services/api';
-
-interface ProfilePost {
-  _id: string;
-  title?: string;
-  text: string;
-  image?: string;
-  likes?: any[];
-  commentCount?: number;
-  createdAt?: string;
-}
-
-// Full-screen post detail modal
-function BuildDetailModal({ post, onClose, onDeleted, onEdited, isOwner }: {
-  post: ProfilePost;
-  onClose: () => void;
-  onDeleted?: (id: string) => void;
-  onEdited?: (id: string, text: string) => void;
-  isOwner?: boolean;
-}) {
-  const { accessToken } = useAuth();
-  const [editMode, setEditMode] = useState(false);
-  const [editText, setEditText] = useState(post.text || '');
-  const [editBusy, setEditBusy] = useState(false);
-
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
-  }, [onClose]);
-
-  const [title, ...rest] = post.text?.split('\n\n') ?? [''];
-  const hasTitle = post.title || (post.text?.startsWith(title) && rest.length > 0);
-  const displayTitle = post.title || (hasTitle ? title : '');
-  const displayBody  = post.title ? post.text : (rest.join('\n\n') || post.text);
-
-  async function handleDelete() {
-    if (!accessToken) return;
-    if (!window.confirm('למחוק את הפוסט?')) return;
-    try {
-      await api.deletePost({ accessToken, postId: post._id });
-      onDeleted?.(post._id);
-      onClose();
-    } catch { /* silent */ }
-  }
-
-  async function handleSaveEdit() {
-    if (!accessToken || !editText.trim()) return;
-    setEditBusy(true);
-    try {
-      await api.updatePost({ accessToken, postId: post._id, text: editText.trim() });
-      onEdited?.(post._id, editText.trim());
-      setEditMode(false);
-    } catch { /* silent */ }
-    finally { setEditBusy(false); }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-[900px] bg-[#16181c] border border-[#2f3336] rounded-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh] shadow-2xl">
-        {/* Image */}
-        <div className="md:w-[55%] bg-[#0a0a0a] flex items-center justify-center min-h-[260px]">
-          {post.image ? (
-            <img src={post.image} alt={displayTitle || 'Build'} className="w-full h-full object-contain max-h-[80vh]" />
-          ) : (
-            <div className="flex flex-col items-center justify-center text-[#71767b] p-8 h-full">
-              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" className="mb-3">
-                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-                <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-              </svg>
-              <span className="text-[15px]">No image</span>
-            </div>
-          )}
-        </div>
-
-        {/* Details */}
-        <div className="md:w-[45%] flex flex-col min-h-0">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-[#2f3336] shrink-0">
-            {displayTitle ? (
-              <div className="font-bold text-[16px] text-white truncate pr-2">{displayTitle}</div>
-            ) : <div />}
-            <div className="flex items-center gap-1 shrink-0">
-              {isOwner && (
-                <>
-                  <button
-                    onClick={() => { setEditText(post.text || ''); setEditMode(true); }}
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-[#71767b] hover:text-[#1d9bf0] hover:bg-[#1d9bf0]/10 transition-colors"
-                    title="Edit"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
-                  </button>
-                  <button
-                    onClick={handleDelete}
-                    className="w-10 h-10 rounded-full flex items-center justify-center text-[#71767b] hover:text-red-400 hover:bg-red-400/10 transition-colors"
-                    title="Delete"
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                      <path d="M10 11v6M14 11v6"/>
-                    </svg>
-                  </button>
-                </>
-              )}
-              <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition-colors">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-5 py-4">
-            {editMode ? (
-              <div>
-                <textarea
-                  value={editText}
-                  onChange={e => setEditText(e.target.value)}
-                  dir="auto"
-                  rows={5}
-                  className="w-full bg-[#202327] border border-[#1d9bf0] rounded-xl px-3 py-2 text-[15px] text-white outline-none resize-none"
-                  autoFocus
-                />
-                <div className="flex gap-2 mt-3">
-                  <button onClick={handleSaveEdit} disabled={editBusy || !editText.trim()}
-                    className="px-4 py-1.5 rounded-full bg-[#1d9bf0] text-white text-[13px] font-bold disabled:opacity-40 hover:bg-[#1a8cd8] transition-colors">
-                    {editBusy ? 'Saving...' : 'Save'}
-                  </button>
-                  <button onClick={() => setEditMode(false)}
-                    className="px-4 py-1.5 rounded-full border border-[#2f3336] text-white text-[13px] font-bold hover:bg-white/5 transition-colors">
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              displayBody && <p className="text-[15px] leading-relaxed text-[#e7e9ea]">{displayBody}</p>
-            )}
-          </div>
-
-          <div className="border-t border-[#2f3336] px-5 py-3 flex items-center gap-5 text-[#71767b] text-[14px] shrink-0">
-            <span className="flex items-center gap-1.5">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-              </svg>
-              {post.likes?.length ?? 0} likes
-            </span>
-            <span className="flex items-center gap-1.5">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              </svg>
-              {post.commentCount ?? 0} comments
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // Modal לעריכת פרופיל - מאפשר שינוי שם משתמש ותמונת פרופיל
 function EditProfileModal({ user, onClose, onSaved }: { user: any; onClose: () => void; onSaved: () => void }) {
@@ -223,7 +65,7 @@ function EditProfileModal({ user, onClose, onSaved }: { user: any; onClose: () =
 }
 
 export default function ProfilePage() {
-  const { user, logout, accessToken } = useAuth();
+  const { user, logout, accessToken, refreshUser } = useAuth();
   const { userId: paramUserId } = useParams<{ userId?: string }>();
 
   // Viewing own profile if no param or param matches current user
@@ -232,9 +74,8 @@ export default function ProfilePage() {
   const isOwnProfile = !paramUserId || paramUserId === ownId;
 
   const [profileUser, setProfileUser] = useState<any>(null);
-  const [posts, setPosts] = useState<ProfilePost[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [postsBusy, setPostsBusy] = useState(false);
-  const [selectedPost, setSelectedPost] = useState<ProfilePost | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [showLogout, setShowLogout] = useState(false);
@@ -247,6 +88,31 @@ export default function ProfilePage() {
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   const totalLikes = posts.reduce((s, p) => s + (p.likes?.length ?? 0), 0);
+
+  const sortedPosts = useMemo(() => {
+    return [...posts].sort((a, b) => {
+      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return tb - ta;
+    });
+  }, [posts]);
+
+  async function handlePostLike(postId: string) {
+    if (!accessToken) return;
+    try {
+      const data = await api.toggleLike({ accessToken, postId });
+      const updated = data.post;
+      setPosts((prev) => prev.map((p) => (p._id === updated._id ? { ...p, ...updated, likes: updated.likes } : p)));
+    } catch { /* silent */ }
+  }
+
+  function handlePostDeleted(postId: string) {
+    setPosts((prev) => prev.filter((p) => p._id !== postId));
+  }
+
+  function handlePostEdited(postId: string, newText: string) {
+    setPosts((prev) => prev.map((p) => (p._id === postId ? { ...p, text: newText } : p)));
+  }
 
   useEffect(() => {
     if (!viewingUserId) return;
@@ -265,19 +131,33 @@ export default function ProfilePage() {
     // Load posts
     setPostsBusy(true);
     api.getUserPosts(viewingUserId)
-      .then(setPosts)
+      .then((raw) =>
+        setPosts((raw || []).map((p) => ({ ...p, likes: p.likes ?? [] }) as Post))
+      )
       .catch(() => setPosts([]))
       .finally(() => setPostsBusy(false));
+  }, [viewingUserId, accessToken, isOwnProfile, user]);
 
-    // Check if current user follows this profile
-    if (!isOwnProfile && accessToken) {
-      api.getFollowers({ accessToken, targetUserId: viewingUserId })
-        .then((followers: any[]) => {
-          setIsFollowing(followers.some((f: any) => (f.id || f._id) === ownId));
-        })
-        .catch(() => {});
+  // האם אני עוקבת אחרי הפרופיל המוצג — מהשרת, נשאר אחרי ריענון
+  useEffect(() => {
+    if (isOwnProfile || !viewingUserId) return;
+    if (!accessToken) {
+      setIsFollowing(false);
+      return;
     }
-  }, [viewingUserId, accessToken]);
+    if (user?.following !== undefined) {
+      setIsFollowing(user.following.map(String).includes(String(viewingUserId)));
+      return;
+    }
+    if (!ownId) return;
+    api.getFollowers({ accessToken, targetUserId: viewingUserId })
+      .then((followers: any[]) => {
+        setIsFollowing(
+          followers.some((f: any) => String(f.id || f._id) === String(ownId))
+        );
+      })
+      .catch(() => {});
+  }, [viewingUserId, accessToken, isOwnProfile, ownId, user?.following]);
 
   // Keep profileUser in sync after editing own profile
   useEffect(() => {
@@ -288,9 +168,10 @@ export default function ProfilePage() {
     if (!accessToken) { window.location.href = '/login'; return; }
     setFollowBusy(true);
     try {
-      await api.toggleFollow({ accessToken, targetUserId: viewingUserId });
-      setIsFollowing(prev => !prev);
-      setFollowersCount(prev => isFollowing ? prev - 1 : prev + 1);
+      const data = await api.toggleFollow({ accessToken, targetUserId: viewingUserId });
+      setIsFollowing(!!data.following);
+      setFollowersCount((prev) => (data.following ? prev + 1 : Math.max(0, prev - 1)));
+      await refreshUser();
     } catch { /* silent */ }
     finally { setFollowBusy(false); }
   }
@@ -479,10 +360,20 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* ── Builds grid ── */}
+      {/* פוסטים — כמו בפיד: לייק/מספרים; תגובות נפתחות רק בלחיצה על אייקון התגובה; תמונה — lightbox בלי תגובות */}
       {postsBusy ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-1 p-1 mt-1">
-          {[...Array(6)].map((_, i) => <div key={i} className="aspect-square bg-white/5 animate-pulse rounded-lg" />)}
+        <div className="px-3 sm:px-4 space-y-3 pt-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="border-b border-[#2f3336] p-4 animate-pulse">
+              <div className="flex gap-3">
+                <div className="w-12 h-12 rounded-full bg-white/10 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-white/10 rounded w-1/3" />
+                  <div className="h-4 bg-white/10 rounded w-full" />
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       ) : posts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 px-4 text-[#71767b]">
@@ -495,63 +386,28 @@ export default function ProfilePage() {
           </div>
           <div className="text-[20px] font-bold text-white mb-2">No builds yet</div>
           <div className="text-[15px] mb-6 text-center max-w-[280px]">Share your first LEGO creation with the community!</div>
-          <button onClick={() => setCreateOpen(true)}
-            className="px-8 py-3 rounded-full font-bold text-white text-[15px]"
-            style={{ background: 'linear-gradient(135deg, #1d9bf0, #38bdf8)' }}>
-            Share Your First Build
-          </button>
+          {isOwnProfile && (
+            <button onClick={() => setCreateOpen(true)}
+              className="px-8 py-3 rounded-full font-bold text-white text-[15px]"
+              type="button"
+              style={{ background: 'linear-gradient(135deg, #1d9bf0, #38bdf8)' }}>
+              Share Your First Build
+            </button>
+          )}
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-1 p-1 mt-1">
-          {posts.map(post => {
-            const [titleLine] = post.text?.split('\n\n') ?? [''];
-            const displayTitle = post.title || (post.text?.includes('\n\n') ? titleLine : '');
-            return (
-              <button key={post._id} onClick={() => setSelectedPost(post)}
-                className="relative aspect-square bg-[#16181c] overflow-hidden rounded-lg group border border-[#2f3336]">
-                {post.image ? (
-                  <img src={post.image} alt={displayTitle || 'Build'} className="w-full h-full object-cover" loading="lazy" />
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center bg-[#1c1f23] text-[#71767b] gap-2 p-3">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-                      <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-                    </svg>
-                    {displayTitle && <div className="text-[11px] text-center text-white/70 line-clamp-2">{displayTitle}</div>}
-                  </div>
-                )}
-                {/* Hover overlay */}
-                <div className="absolute inset-0 bg-black/65 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-3">
-                  {displayTitle && <div className="text-[12px] font-bold text-white text-center line-clamp-2">{displayTitle}</div>}
-                  <div className="flex items-center gap-4 text-white font-bold text-[13px]">
-                    <span className="flex items-center gap-1">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="white" stroke="none">
-                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                      </svg>
-                      {post.likes?.length ?? 0}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="white" stroke="none">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                      </svg>
-                      {post.commentCount ?? 0}
-                    </span>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
+        <div className="px-3 sm:px-4 space-y-3 pt-2 pb-4">
+          {sortedPosts.map((post) => (
+            <PostCard
+              key={post._id}
+              post={post}
+              currentUserId={ownId}
+              onToggleLike={handlePostLike}
+              onDeleted={handlePostDeleted}
+              onEdited={handlePostEdited}
+            />
+          ))}
         </div>
-      )}
-
-      {selectedPost && (
-        <BuildDetailModal
-          post={selectedPost}
-          isOwner={isOwnProfile}
-          onClose={() => setSelectedPost(null)}
-          onDeleted={(id) => { setPosts(prev => prev.filter(p => p._id !== id)); setSelectedPost(null); }}
-          onEdited={(id, text) => { setPosts(prev => prev.map(p => p._id === id ? { ...p, text } : p)); setSelectedPost(prev => prev ? { ...prev, text } : null); }}
-        />
       )}
       {editOpen && <EditProfileModal user={profileUser ?? user} onClose={() => setEditOpen(false)} onSaved={() => { setEditOpen(false); window.location.reload(); }} />}
       {createOpen && <CreateBuildModal onClose={() => setCreateOpen(false)} onCreated={() => { setCreateOpen(false); window.location.reload(); }} />}

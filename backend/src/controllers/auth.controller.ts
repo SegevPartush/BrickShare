@@ -35,7 +35,8 @@ export const register = async (req: Request, res: Response): Promise<Response | 
         id: user._id,
         username: user.username,
         email: user.email,
-        profileImage: user.profileImage
+        profileImage: user.profileImage,
+        following: (user.following || []).map((id) => id.toString())
       },
       accessToken,
       refreshToken
@@ -70,7 +71,8 @@ export const login = async (req: Request, res: Response): Promise<Response | voi
         id: user._id,
         username: user.username,
         email: user.email,
-        profileImage: user.profileImage
+        profileImage: user.profileImage,
+        following: (user.following || []).map((id) => id.toString())
       },
       accessToken,
       refreshToken
@@ -122,7 +124,8 @@ export const getMe = async (req: Request, res: Response): Promise<Response | voi
         username: user.username,
         email: user.email,
         profileImage: user.profileImage,
-        createdAt: user.createdAt
+        createdAt: user.createdAt,
+        following: (user.following || []).map((id) => id.toString())
       }
     });
   } catch (error) {

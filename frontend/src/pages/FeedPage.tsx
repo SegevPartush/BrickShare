@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ShellLayout from '../components/layout/ShellLayout';
 import PostCard from '../components/posts/PostCard';
 import Card from '../components/ui/Card';
@@ -25,7 +25,7 @@ function SkeletonPost() {
 }
 
 export default function FeedPage() {
-  const { accessToken, user, logout } = useAuth();
+  const { accessToken, user, logout, refreshUser } = useAuth();
   const currentUserId = user?.id || user?._id || '';
   const isSignedIn = Boolean(accessToken);
 
@@ -49,23 +49,42 @@ export default function FeedPage() {
   const [suggestedUsers, setSuggestedUsers] = useState<any[]>([]);
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
 
-  // טעינת פוסטים מהשרת
-  async function loadPosts(pageNum: number = 1, append: boolean = false) {
-    if (loading) return;
-    setLoading(true);
-    try {
-      const data = await api.getPosts({ page: pageNum, limit: 10 });
-      setPosts(prev => append ? [...prev, ...(data.posts || [])] : (data.posts || []));
-      setHasMore(pageNum < data.totalPages);
-    } catch (e) {
-      console.error('שגיאה בטעינת פוסטים:', e);
-    } finally {
-      setLoading(false);
-    }
-  }
+  // For You = כל הפוסטים | Following = רק אני + מי שאני עוקב אחריו (דורש התחברות)
+  const loadPosts = useCallback(
+    async (pageNum: number, append: boolean) => {
+      if (activeTab === 'recommended' && !accessToken) {
+        if (!append) {
+          setPosts([]);
+          setHasMore(false);
+        }
+        return;
+      }
+      setLoading(true);
+      try {
+        const data = await api.getPosts({
+          page: pageNum,
+          limit: 10,
+          feed: activeTab === 'feed' ? 'forYou' : 'following',
+          accessToken: accessToken || undefined
+        });
+        setPosts((prev) => (append ? [...prev, ...(data.posts || [])] : (data.posts || [])));
+        const totalPages = data.totalPages ?? 0;
+        setHasMore(totalPages > 0 && pageNum < totalPages);
+      } catch (e) {
+        console.error('שגיאה בטעינת פוסטים:', e);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [activeTab, accessToken]
+  );
 
-  // טעינה ראשונית
-  useEffect(() => { loadPosts(1, false); }, []);
+  // טעינה כשמחליפים טאב / מתחברים
+  useEffect(() => {
+    setPage(1);
+    setHasMore(true);
+    void loadPosts(1, false);
+  }, [activeTab, accessToken, loadPosts]);
 
   // Infinite scroll
   useEffect(() => {
@@ -75,14 +94,24 @@ export default function FeedPage() {
         if (entry.isIntersecting && hasMore && !loading) {
           const nextPage = page + 1;
           setPage(nextPage);
-          loadPosts(nextPage, true);
+          void loadPosts(nextPage, true);
         }
       },
       { threshold: 0.1 }
     );
     observer.observe(bottomRef.current);
     return () => observer.disconnect();
-  }, [page, hasMore, loading]);
+  }, [page, hasMore, loading, loadPosts]);
+
+  // שחזור מי אני עוקב אחריו מהשרת (localStorage / כניסה מחדש)
+  useEffect(() => {
+    if (!user) {
+      setFollowingIds(new Set());
+      return;
+    }
+    if (user.following === undefined) return;
+    setFollowingIds(new Set(user.following.map((id) => String(id))));
+  }, [user]);
 
   // טעינת משתמשים מומלצים
   useEffect(() => {
@@ -134,11 +163,13 @@ export default function FeedPage() {
     if (!accessToken) return;
     try {
       const data = await api.toggleFollow({ accessToken, targetUserId });
-      setFollowingIds(prev => {
+      setFollowingIds((prev) => {
         const next = new Set(prev);
-        if (data.following) next.add(targetUserId); else next.delete(targetUserId);
+        if (data.following) next.add(String(targetUserId));
+        else next.delete(String(targetUserId));
         return next;
       });
+      await refreshUser();
     } catch { /* שקט */ }
   }
 
@@ -254,6 +285,7 @@ export default function FeedPage() {
             ] as const).map(({ key, label }) => (
               <button
                 key={key}
+                type="button"
                 onClick={() => setActiveTab(key)}
                 className={`flex-1 py-4 text-[15px] font-semibold relative transition-colors ${
                   activeTab === key ? 'text-white' : 'text-[#71767b] hover:bg-white/[0.03]'
@@ -292,7 +324,12 @@ export default function FeedPage() {
         {createOpen && (
           <CreateBuildModal
             onClose={() => setCreateOpen(false)}
-            onCreated={() => { setCreateOpen(false); setPage(1); setHasMore(true); loadPosts(1, false); }}
+            onCreated={() => {
+              setCreateOpen(false);
+              setPage(1);
+              setHasMore(true);
+              void loadPosts(1, false);
+            }}
           />
         )}
 
@@ -317,8 +354,27 @@ export default function FeedPage() {
         )}
 
         {!loading && posts.length === 0 && (
-          <div className="p-12 text-center text-[#71767b]">
-            No posts yet. Be the first to share! 🧱
+          <div className="p-12 text-center text-[#71767b] text-[15px] max-w-md mx-auto">
+            {activeTab === 'recommended' && !isSignedIn ? (
+              <>
+                <p className="text-white font-semibold mb-2">התחברו כדי לראות את הפיד &quot;Following&quot;</p>
+                <p className="text-[14px] mb-4">כאן מוצגים רק פוסטים שלכם ושל אנשים שאתם עוקבים אחריהם.</p>
+                <button
+                  type="button"
+                  onClick={() => { window.location.href = '/login'; }}
+                  className="px-6 py-2 rounded-full font-bold text-white bg-[#1d9bf0] hover:bg-[#1a8cd8] transition-colors"
+                >
+                  Sign in
+                </button>
+              </>
+            ) : activeTab === 'recommended' ? (
+              <>
+                <p className="text-white font-semibold mb-2">אין עדיין פוסטים בפיד הזה</p>
+                <p className="text-[14px]">פוסטים ממך וממי שאתה עוקב אחריו יופיעו כאן. פרסמו בנייה או עקבו אחרי אספנים נוספים.</p>
+              </>
+            ) : (
+              <>No posts yet. Be the first to share! 🧱</>
+            )}
           </div>
         )}
 

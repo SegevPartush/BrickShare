@@ -124,6 +124,18 @@ export function AuthProvider({ children }: { children?: React.ReactNode }) {
     }
   }
 
+  async function refreshUser() {
+    const t = accessToken || localStorage.getItem(ACCESS_KEY) || '';
+    if (!t) return;
+    try {
+      const me = await api.getMe(t);
+      setUser(me);
+      localStorage.setItem(USER_KEY, JSON.stringify(me));
+    } catch {
+      /* ignore */
+    }
+  }
+
   function logout() {
     setAccessToken('');
     setRefreshToken('');
@@ -135,7 +147,7 @@ export function AuthProvider({ children }: { children?: React.ReactNode }) {
 
   const value: AuthContextType = {
     accessToken, refreshToken, user, loading, authHeaders,
-    register, login, refresh, logout, setOAuthTokens, getValidToken
+    register, login, refresh, logout, setOAuthTokens, getValidToken, refreshUser
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

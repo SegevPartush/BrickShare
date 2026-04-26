@@ -6,6 +6,8 @@ export interface User {
   username?: string;
   email: string;
   profileImage?: string;
+  /** ids של משתמשים שהמשתמש הנוכחי עוקב אחריהם — מגיע מ־/api/auth/me */
+  following?: string[];
 }
 
 export interface Post {
@@ -13,6 +15,9 @@ export interface Post {
   title?: string;
   text: string;
   image?: string;
+  /** 0–100, מרכז לפיד/פריים */
+  imageFocalX?: number;
+  imageFocalY?: number;
   author: { _id?: string; username?: string; email?: string; profileImage?: string };
   likes: any[];
   commentCount?: number;
@@ -33,4 +38,6 @@ export interface AuthContextType {
   logout: () => void;
   setOAuthTokens: (tokens: { accessToken: string; refreshToken: string; userId: string }) => void;
   getValidToken: () => Promise<string>;
+  /** מסנכרן את אובייקט המשתמש מהשרת (למשל אחרי Follow/Unfollow) */
+  refreshUser: () => Promise<void>;
 }

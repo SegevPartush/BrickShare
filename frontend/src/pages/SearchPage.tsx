@@ -15,7 +15,7 @@ interface UserResult {
 }
 
 export default function SearchPage() {
-  const { accessToken, user: currentUser } = useAuth();
+  const { accessToken, user: currentUser, refreshUser } = useAuth();
   const currentUserId = currentUser?.id || currentUser?._id || '';
 
   // מצב החיפוש
@@ -39,6 +39,16 @@ export default function SearchPage() {
       .then(setSuggestions)
       .catch(() => setSuggestions([]));
   }, [accessToken]);
+
+  // שחזור מצב "עוקב" מהשרת בכל כניסה
+  useEffect(() => {
+    if (!currentUser) {
+      setFollowingIds(new Set());
+      return;
+    }
+    if (currentUser.following === undefined) return;
+    setFollowingIds(new Set(currentUser.following.map((id) => String(id))));
+  }, [currentUser]);
 
   // חיפוש עם debounce - מחכה 400ms אחרי הקלדה
   useEffect(() => {
@@ -79,11 +89,13 @@ export default function SearchPage() {
     }
     try {
       const data = await api.toggleFollow({ accessToken, targetUserId });
-      setFollowingIds(prev => {
+      setFollowingIds((prev) => {
         const next = new Set(prev);
-        if (data.following) next.add(targetUserId); else next.delete(targetUserId);
+        if (data.following) next.add(String(targetUserId));
+        else next.delete(String(targetUserId));
         return next;
       });
+      await refreshUser();
     } catch { /* שקט */ }
   }
 

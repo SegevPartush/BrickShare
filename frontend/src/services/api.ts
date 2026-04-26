@@ -24,8 +24,24 @@ export async function getMe(accessToken: string) {
   return res.data.user;
 }
 
-export async function getPosts({ page = 1, limit = 10 } = {}) {
-  const res = await api.get('/api/posts', { params: { page, limit } });
+export async function getPosts({
+  page = 1,
+  limit = 10,
+  feed = 'forYou' as 'forYou' | 'following',
+  accessToken
+}: {
+  page?: number;
+  limit?: number;
+  feed?: 'forYou' | 'following';
+  accessToken?: string;
+} = {}) {
+  const params: Record<string, string | number> = { page, limit };
+  if (feed === 'following') {
+    params.feed = 'following';
+  }
+  const headers =
+    feed === 'following' && accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined;
+  const res = await api.get('/api/posts', { params, headers });
   return res.data;
 }
 
@@ -67,10 +83,14 @@ export async function createPost(payload: {
   accessToken: string;
   text: string;
   imageFile?: File | null;
+  imageFocalX?: number;
+  imageFocalY?: number;
 }) {
   const form = new FormData();
   form.append('text', payload.text);
   if (payload.imageFile) form.append('image', payload.imageFile);
+  if (payload.imageFile && payload.imageFocalX != null) form.append('imageFocalX', String(payload.imageFocalX));
+  if (payload.imageFile && payload.imageFocalY != null) form.append('imageFocalY', String(payload.imageFocalY));
   const res = await api.post('/api/posts', form, {
     headers: { Authorization: `Bearer ${payload.accessToken}` }
   });
@@ -82,6 +102,11 @@ export async function toggleLike(payload: { accessToken: string; postId: string 
     headers: { Authorization: `Bearer ${payload.accessToken}` }
   });
   return res.data;
+}
+
+export async function getPost(postId: string) {
+  const res = await api.get(`/api/posts/${postId}`);
+  return res.data.post;
 }
 
 export async function getSuggestedUsers({ accessToken, limit = 5 }: { accessToken?: string; limit?: number } = {}) {

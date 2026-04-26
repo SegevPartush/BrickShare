@@ -4,6 +4,7 @@ import Avatar from '../ui/Avatar';
 import CommentList, { CommentItem } from './CommentList';
 import CommentForm from './CommentForm';
 import PostDetailModal from './PostDetailModal';
+import LikesListModal, { LikePerson } from './LikesListModal';
 import { Post } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import * as api from '../../services/api';
@@ -39,6 +40,29 @@ function isLikedByUser(post: Post, userId?: string): boolean {
   });
 }
 
+function mapLikesToPeople(likes: any[]): LikePerson[] {
+  return (likes || [])
+    .map((u: any) => {
+      const id = u?._id ?? u?.id ?? u;
+      const idStr = typeof id === 'string' ? id : id?.toString?.() ?? '';
+      const username = typeof u === 'object' && u != null && u.username != null ? String(u.username) : 'User';
+      return {
+        id: idStr,
+        username,
+        profileImage: typeof u === 'object' && u?.profileImage
+      } as LikePerson;
+    })
+    .filter((p) => p.id);
+}
+
+function likesDataIsPopulated(likes: any[]): boolean {
+  if (!likes.length) return true;
+  const first = likes[0];
+  if (typeof first === 'string') return false;
+  if (first && typeof first === 'object' && 'username' in first && (first as { username?: string }).username) return true;
+  return false;
+}
+
 export default function PostCard({ post, currentUserId, onToggleLike, matchReason, onDeleted, onEdited }: PostCardProps) {
   const { accessToken, user } = useAuth();
   const navigate = useNavigate();
@@ -59,6 +83,9 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
   const [editText, setEditText] = useState(post.text || '');
   const [editBusy, setEditBusy] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [showLikesModal, setShowLikesModal] = useState(false);
+  const [likesListPeople, setLikesListPeople] = useState<LikePerson[]>([]);
+  const [likesListLoading, setLikesListLoading] = useState(false);
   const commentInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -81,6 +108,11 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMenu]);
 
+  useEffect(() => {
+    setLiked(isLikedByUser(post, currentUserId));
+    setLikesCount(post.likes?.length ?? 0);
+  }, [post, currentUserId]);
+
   // טוען תגובות פעם אחת בלבד - כשנפתחת אזור התגובות או ה-modal
   async function ensureCommentsLoaded() {
     if (commentsLoaded) return;
@@ -96,10 +128,6 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
     }
   }
 
-  // טוען תגובות אוטומטית כשה-modal נפתח
-  useEffect(() => {
-    if (modalOpen) ensureCommentsLoaded();
-  }, [modalOpen]); // eslint-disable-line
 
   async function handleDelete() {
     if (!accessToken) return;
@@ -122,12 +150,34 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
     finally { setEditBusy(false); }
   }
 
-  // Optimistic update - משנה UI מיד ושולח לשרת ברקע
   function handleLike() {
     if (!isSignedIn) { window.location.href = '/login'; return; }
-    setLiked((prev) => !prev);
-    setLikesCount((prev) => (liked ? prev - 1 : prev + 1));
+    setLiked((prev) => {
+      setLikesCount((c) => c + (prev ? -1 : 1));
+      return !prev;
+    });
     onToggleLike?.(post._id);
+  }
+
+  async function openLikesList(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (likesCount <= 0) return;
+    setShowLikesModal(true);
+    const raw = post.likes || [];
+    if (raw.length > 0 && likesDataIsPopulated(raw)) {
+      setLikesListPeople(mapLikesToPeople(raw));
+      setLikesListLoading(false);
+      return;
+    }
+    setLikesListLoading(true);
+    try {
+      const p = await api.getPost(post._id);
+      setLikesListPeople(mapLikesToPeople(p.likes || []));
+    } catch {
+      setLikesListPeople([]);
+    } finally {
+      setLikesListLoading(false);
+    }
   }
 
   async function handleToggleComments() {
@@ -280,15 +330,26 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
         {post.image && (
           <div className="mt-3 ml-[56px] rounded-2xl overflow-hidden border border-[#2f3336] bg-[#0f1115] aspect-[16/9]">
             <button type="button" onClick={() => setModalOpen(true)} className="block w-full h-full text-left">
-              <img src={post.image} alt="LEGO build" className="w-full h-full object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+              <img
+                src={post.image}
+                alt="LEGO build"
+                className="w-full h-full object-cover hover:opacity-95 transition-opacity"
+                style={{
+                  objectPosition: `${post.imageFocalX ?? 50}% ${post.imageFocalY ?? 50}%`
+                }}
+                loading="lazy"
+              />
             </button>
           </div>
         )}
 
         <div className="ml-[56px] flex items-center justify-between max-w-[380px] mt-1 -ml-1 py-1">
           <button
+            type="button"
             onClick={handleToggleComments}
             className={`flex items-center gap-1.5 group transition-colors ${showComments ? 'text-[#1d9bf0]' : 'text-[#71767b] hover:text-[#1d9bf0]'}`}
+            aria-expanded={showComments}
+            aria-label={showComments ? 'Hide comments' : 'Show comments'}
           >
             <div className="w-9 h-9 rounded-full flex items-center justify-center group-hover:bg-[#1d9bf0]/10 transition-colors">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -298,27 +359,44 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
             {commentsCount > 0 && <span className="text-[13px] font-medium">{commentsCount}</span>}
           </button>
 
-          <button
-            onClick={handleLike}
-            className={`flex items-center gap-1.5 group transition-colors ${liked ? 'text-[#f91880]' : 'text-[#71767b] hover:text-[#f91880]'}`}
+          <div
+            className={`flex items-center gap-0.5 ${liked ? 'text-[#f91880]' : 'text-[#71767b]'}`}
           >
-            <div className="w-9 h-9 rounded-full flex items-center justify-center group-hover:bg-[#f91880]/10 transition-colors">
-              <svg
-                width="18" height="18" viewBox="0 0 24 24"
-                fill={liked ? '#f91880' : 'none'}
-                stroke={liked ? '#f91880' : 'currentColor'}
-                strokeWidth="2"
-                style={{ transition: 'transform 0.15s', transform: liked ? 'scale(1.2)' : 'scale(1)' }}
+            <button
+              type="button"
+              onClick={handleLike}
+              className="flex items-center group transition-colors text-inherit hover:text-[#f91880]"
+              aria-label={liked ? 'Unlike' : 'Like'}
+            >
+              <div className="w-9 h-9 rounded-full flex items-center justify-center group-hover:bg-[#f91880]/10 transition-colors">
+                <svg
+                  width="18" height="18" viewBox="0 0 24 24"
+                  fill={liked ? '#f91880' : 'none'}
+                  stroke={liked ? '#f91880' : 'currentColor'}
+                  strokeWidth="2"
+                  style={{ transition: 'transform 0.15s', transform: liked ? 'scale(1.2)' : 'scale(1)' }}
+                >
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+              </div>
+            </button>
+            {likesCount > 0 && (
+              <button
+                type="button"
+                onClick={openLikesList}
+                className="min-h-9 pl-0.5 pr-1.5 -ml-0.5 rounded-lg text-[13px] font-medium hover:underline text-inherit transition-colors"
+                aria-label="See who liked"
               >
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
-            </div>
-            {likesCount > 0 && <span className="text-[13px] font-medium">{likesCount}</span>}
-          </button>
+                {likesCount}
+              </button>
+            )}
+          </div>
 
           <button
+            type="button"
             onClick={handleShare}
             className={`flex items-center gap-1.5 group transition-colors ${shared ? 'text-[#1d9bf0]' : 'text-[#71767b] hover:text-[#1d9bf0]'}`}
+            aria-label="Share"
           >
             <div className="w-9 h-9 rounded-full flex items-center justify-center group-hover:bg-[#1d9bf0]/10 transition-colors">
               {shared ? (
@@ -364,30 +442,16 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
       )}
 
       {modalOpen && post.image && (
-        <PostDetailModal
-          post={post}
-          authorName={authorName}
-          timeAgoText={timeAgo(post.createdAt)}
-          liked={liked}
-          likesCount={likesCount}
-          commentsCount={commentsCount}
-          shared={shared}
-          comments={comments}
-          commentsLoading={commentsBusy}
-          commentsLoaded={commentsLoaded}
-          currentUser={user}
-          isSignedIn={isSignedIn}
-          newComment={newComment}
-          submitting={submitting}
-          onClose={() => setModalOpen(false)}
-          onLike={handleLike}
-          onShare={handleShare}
-          onCommentChange={setNewComment}
-          onSubmitComment={handleSubmitComment}
-          onDeleteComment={handleDeleteComment}
-          onLoginRedirect={() => { window.location.href = '/login'; }}
-        />
+        <PostDetailModal imageUrl={post.image} onClose={() => setModalOpen(false)} alt={authorName ? `Build by ${authorName}` : 'LEGO build'} />
       )}
+
+      <LikesListModal
+        open={showLikesModal}
+        onClose={() => setShowLikesModal(false)}
+        people={likesListPeople}
+        loading={likesListLoading}
+        title="Liked by"
+      />
     </article>
   );
 }
