@@ -109,11 +109,6 @@ export async function toggleLike(payload: { accessToken: string; postId: string 
   return res.data;
 }
 
-export async function getPost(postId: string) {
-  const res = await api.get(`/api/posts/${postId}`);
-  return res.data.post;
-}
-
 export async function getSuggestedUsers({ accessToken, limit = 5 }: { accessToken?: string; limit?: number } = {}) {
   const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
   const res = await api.get('/api/users', { params: { limit }, headers });

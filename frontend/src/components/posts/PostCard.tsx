@@ -67,7 +67,7 @@ function likesDataIsPopulated(likes: any[]): boolean {
   return false;
 }
 
-export default function PostCard({ post, currentUserId, onToggleLike, matchReason, onDeleted, onEdited }: PostCardProps) {
+export default function PostCard({ post, currentUserId, onToggleLike, matchReason, onDeleted, onEdited, commentsBehavior = 'inline' }: PostCardProps) {
   const { accessToken, user } = useAuth();
   const navigate = useNavigate();
   const isSignedIn = Boolean(accessToken);
@@ -413,7 +413,7 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
           </div>
         </div>
 
-        {post.image && (
+        {!editMode && post.image && (
           <div className="mt-3 ml-[56px] rounded-2xl overflow-hidden border border-[#2f3336] bg-[#0f1115] aspect-[16/9]">
             <button type="button" onClick={() => setModalOpen(true)} className="block w-full h-full text-left">
               <img
@@ -425,6 +425,10 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
                 }}
                 loading="lazy"
               />
+            </button>
+          </div>
+        )}
+
         {editMode && (
           <div className="mt-3 ml-[56px] rounded-2xl border border-[#2f3336]/70 overflow-hidden bg-[#0f1115] p-3 shadow-inner ring-1 ring-white/[0.04]">
             <div className="rounded-xl overflow-hidden bg-black/40 aspect-[16/9] max-h-[240px] flex items-center justify-center mb-2">
@@ -459,14 +463,6 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
                 </button>
               )}
             </div>
-          </div>
-        )}
-
-        {!editMode && post.image && (
-          <div className="mt-3 ml-[56px] rounded-2xl overflow-hidden border border-[#2f3336]/60 bg-[#0f1115] aspect-[16/9] ring-1 ring-white/[0.04]">
-            <button type="button" onClick={() => setModalOpen(true)} className="block w-full h-full text-left group">
-              <img src={post.image} alt="LEGO build" className="w-full h-full object-cover group-hover:opacity-90 transition-opacity duration-200" loading="lazy" />
-            </button>
           </div>
         )}
 
@@ -528,11 +524,6 @@ aria-label={showComments ? 'Hide comments' : 'Show comments'}
     </button>
   )}
 </div>
-              >
-                {likesCount}
-              </button>
-            )}
-          </div>
 
           <button
             type="button"

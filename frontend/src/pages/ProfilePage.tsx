@@ -147,10 +147,9 @@ export default function ProfilePage() {
     // Load posts
     setPostsBusy(true);
     api.getUserPosts(viewingUserId)
-      .then((raw) =>
+      .then((raw: Post[]) =>
         setPosts((raw || []).map((p) => ({ ...p, likes: p.likes ?? [] }) as Post))
       )
-      .then((raw: Post[]) => setPosts((raw || []).map((p) => ({ ...p, likes: p.likes ?? [] }))))
       .catch(() => setPosts([]))
       .finally(() => setPostsBusy(false));
   }, [viewingUserId, accessToken, isOwnProfile, user]);
@@ -411,10 +410,8 @@ export default function ProfilePage() {
               key={post._id}
               post={post}
               currentUserId={ownId}
-              onToggleLike={handlePostLike}
-              currentUserId={currentUserId}
               commentsBehavior="thread"
-              onToggleLike={handleLike}
+              onToggleLike={handlePostLike}
               onDeleted={handlePostDeleted}
               onEdited={handlePostEdited}
             />

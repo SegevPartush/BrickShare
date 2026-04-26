@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ShellLayout from '../components/layout/ShellLayout';
 import PostCard from '../components/posts/PostCard';
@@ -28,7 +27,6 @@ function SkeletonPost() {
 
 export default function FeedPage() {
   const { accessToken, user, logout, refreshUser } = useAuth();
-  const { accessToken, user, logout } = useAuth();
   const navigate = useNavigate();
   const currentUserId = user?.id || user?._id || '';
   const isSignedIn = Boolean(accessToken);
@@ -204,7 +202,6 @@ export default function FeedPage() {
         return next;
       });
       await refreshUser();
-    } catch { /* שקט */ }
     } catch (e) {
       console.error('שגיאה במעקב אחרי משתמש:', e);
       setFollowingIds(prev => {
