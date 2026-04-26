@@ -128,8 +128,9 @@ export const getPostById = async (req: Request, res: Response): Promise<Response
 
 export const createPost = async (req: Request, res: Response): Promise<Response | void> => {
   try {
-    const { text } = req.body;
+    const rawText = req.body?.text !== undefined && req.body?.text !== null ? String(req.body.text) : '';
     const image = req.file ? `/uploads/posts/${req.file.filename}` : '';
+    const text = rawText.trim() || (image ? '📷' : '');
 
     const post = new Post({
       text,

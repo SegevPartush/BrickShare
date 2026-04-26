@@ -93,10 +93,12 @@ export default function FeedPage() {
 
   // פרסום פוסט חדש
   async function handleCreatePost() {
-    if (!newPostText.trim() || !accessToken) return;
+    if (!accessToken) return;
+    const t = newPostText.trim();
+    if (!t && !newPostImage) return;
     setCreateBusy(true);
     try {
-      await api.createPost({ accessToken, text: newPostText.trim(), imageFile: newPostImage });
+      await api.createPost({ accessToken, text: t, imageFile: newPostImage });
       setNewPostText('');
       setNewPostImage(null);
       setPage(1);
