@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ShellLayout from '../components/layout/ShellLayout';
 import PostCard from '../components/posts/PostCard';
 import Card from '../components/ui/Card';
@@ -11,13 +13,13 @@ import * as api from '../services/api';
 // Loading skeleton post
 function SkeletonPost() {
   return (
-    <div className="border-b border-[#2f3336] p-4 animate-pulse">
+    <div className="rounded-2xl border border-[#2f3336]/60 bg-[#0c0d10]/90 p-4 shadow-card animate-pulse">
       <div className="flex gap-3">
-        <div className="w-12 h-12 rounded-full bg-white/10 shrink-0" />
+        <div className="w-12 h-12 rounded-xl bg-white/10 shrink-0" />
         <div className="flex-1 space-y-3">
-          <div className="h-4 bg-white/10 rounded w-1/3" />
-          <div className="h-4 bg-white/10 rounded w-full" />
-          <div className="h-4 bg-white/10 rounded w-2/3" />
+          <div className="h-4 bg-white/10 rounded-lg w-1/3" />
+          <div className="h-4 bg-white/10 rounded-lg w-full" />
+          <div className="h-4 bg-white/10 rounded-lg w-2/3" />
         </div>
       </div>
     </div>
@@ -26,6 +28,8 @@ function SkeletonPost() {
 
 export default function FeedPage() {
   const { accessToken, user, logout, refreshUser } = useAuth();
+  const { accessToken, user, logout } = useAuth();
+  const navigate = useNavigate();
   const currentUserId = user?.id || user?._id || '';
   const isSignedIn = Boolean(accessToken);
 
@@ -120,12 +124,30 @@ export default function FeedPage() {
       .catch(() => setSuggestedUsers([]));
   }, [accessToken]);
 
+  // טעינת רשימת המשתמשים שאני עוקב אחריהם - כדי להציג נכון "Following" על הכפתור
+  useEffect(() => {
+    if (!accessToken || !currentUserId) {
+      setFollowingIds(new Set());
+      return;
+    }
+    api.getFollowing({ accessToken, targetUserId: currentUserId })
+      .then((list: any[]) => {
+        const ids = new Set<string>(
+          (list || []).map((u: any) => String(u.id || u._id))
+        );
+        setFollowingIds(ids);
+      })
+      .catch(() => setFollowingIds(new Set()));
+  }, [accessToken, currentUserId]);
+
   // פרסום פוסט חדש
   async function handleCreatePost() {
-    if (!newPostText.trim() || !accessToken) return;
+    if (!accessToken) return;
+    const t = newPostText.trim();
+    if (!t && !newPostImage) return;
     setCreateBusy(true);
     try {
-      await api.createPost({ accessToken, text: newPostText.trim(), imageFile: newPostImage });
+      await api.createPost({ accessToken, text: t, imageFile: newPostImage });
       setNewPostText('');
       setNewPostImage(null);
       setPage(1);
@@ -154,13 +176,25 @@ export default function FeedPage() {
     setPosts(prev => prev.filter(p => p._id !== postId));
   }
 
-  function handlePostEdited(postId: string, newText: string) {
-    setPosts(prev => prev.map(p => p._id === postId ? { ...p, text: newText } : p));
+  function handlePostEdited(updated: { _id: string; text?: string; image?: string; likes?: any[]; commentCount?: number }) {
+    setPosts((prev) =>
+      prev.map((p) => (p._id === updated._id ? { ...p, ...updated } : p))
+    );
   }
 
   // עקוב / הפסק לעקוב
   async function handleFollow(targetUserId: string) {
     if (!accessToken) return;
+    if (!targetUserId || targetUserId === currentUserId) return;
+
+    // עדכון אופטימי - הכפתור מתחלף מיד, ואם השרת ייכשל נחזיר אחורה
+    const wasFollowing = followingIds.has(targetUserId);
+    setFollowingIds(prev => {
+      const next = new Set(prev);
+      if (wasFollowing) next.delete(targetUserId); else next.add(targetUserId);
+      return next;
+    });
+
     try {
       const data = await api.toggleFollow({ accessToken, targetUserId });
       setFollowingIds((prev) => {
@@ -171,6 +205,19 @@ export default function FeedPage() {
       });
       await refreshUser();
     } catch { /* שקט */ }
+    } catch (e) {
+      console.error('שגיאה במעקב אחרי משתמש:', e);
+      setFollowingIds(prev => {
+        const next = new Set(prev);
+        if (wasFollowing) next.add(targetUserId); else next.delete(targetUserId);
+        return next;
+      });
+    }
+  }
+
+  function goToProfile(uid: string) {
+    if (!uid) return;
+    navigate(`/profile/${uid}`);
   }
 
   // Right panel - Trending + suggested users
@@ -232,38 +279,46 @@ export default function FeedPage() {
         <div className="px-4 py-3 border-b border-[#2f3336]">
           <div className="font-extrabold text-[20px]">Who to Follow</div>
         </div>
-        {(suggestedUsers.length > 0 ? suggestedUsers : [
-          { _id: 'u1', username: 'sarah_builds' },
-          { _id: 'u2', username: 'dani_technic' },
-          { _id: 'u3', username: 'michal_moc' },
-        ]).map((u: any, i, arr) => {
-          const uid = u.id || u._id;
+        {suggestedUsers.length === 0 ? (
+          <div className="px-4 py-6 text-[13px] text-[#71767b] text-center">
+            אין כרגע משתמשים מומלצים
+          </div>
+        ) : suggestedUsers.map((u: any, i, arr) => {
+          const uid = String(u.id || u._id || '');
           const name = u.username || 'collector';
           const isFollowed = followingIds.has(uid);
+          const isSelf = uid === currentUserId;
           return (
             <div
               key={uid}
               className={`px-4 py-3 hover:bg-white/[0.03] transition-colors ${i < arr.length - 1 ? 'border-b border-[#2f3336]' : ''}`}
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => goToProfile(uid)}
+                  className="flex items-center gap-3 text-right hover:opacity-80 transition-opacity"
+                  title="הצג פרופיל"
+                >
                   <Avatar name={name} imageUrl={u.profileImage} size={44} />
                   <div>
-                    <div className="font-bold text-[15px]">@{name}</div>
+                    <div className="font-bold text-[15px] hover:underline">@{name}</div>
                     <div className="text-[12px] text-[#71767b]">LEGO collector</div>
                   </div>
-                </div>
-                <button
-                  onClick={() => handleFollow(uid)}
-                  disabled={!isSignedIn}
-                  className={`px-4 py-1.5 rounded-full text-[14px] font-bold transition-colors disabled:opacity-50 ${
-                    isFollowed
-                      ? 'border border-[#71767b] text-white hover:border-red-400 hover:text-red-400'
-                      : 'bg-white text-black hover:bg-gray-200'
-                  }`}
-                >
-                  {isFollowed ? 'Following' : 'Follow'}
                 </button>
+                {!isSelf && (
+                  <button
+                    onClick={() => handleFollow(uid)}
+                    disabled={!isSignedIn}
+                    className={`px-4 py-1.5 rounded-full text-[14px] font-bold transition-colors disabled:opacity-50 ${
+                      isFollowed
+                        ? 'border border-[#71767b] text-white hover:border-red-400 hover:text-red-400'
+                        : 'bg-white text-black hover:bg-gray-200'
+                    }`}
+                  >
+                    {isFollowed ? 'Following' : 'Follow'}
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -276,7 +331,7 @@ export default function FeedPage() {
     <ShellLayout title="קהילת אספני הלגו" rightPanel={rightPanel}>
       <div>
         {/* Sticky header with tabs */}
-        <div className="sticky top-0 bg-black/85 backdrop-blur-xl border-b border-[#2f3336] z-10">
+        <div className="sticky top-0 bg-black/80 backdrop-blur-xl border-b border-[#2f3336]/80 z-10">
           {/* Tabs */}
           <div className="flex">
             {([
@@ -288,7 +343,7 @@ export default function FeedPage() {
                 type="button"
                 onClick={() => setActiveTab(key)}
                 className={`flex-1 py-4 text-[15px] font-semibold relative transition-colors ${
-                  activeTab === key ? 'text-white' : 'text-[#71767b] hover:bg-white/[0.03]'
+                  activeTab === key ? 'text-white' : 'text-tertiary hover:text-white/90 hover:bg-white/[0.04]'
                 }`}
               >
                 {label}
@@ -302,16 +357,17 @@ export default function FeedPage() {
 
         {/* Composer trigger */}
         {isSignedIn && (
-          <div className="border-b border-[#2f3336] px-4 py-3">
+          <div className="border-b border-[#2f3336]/80 px-3 sm:px-4 py-3">
             <button
+              type="button"
               onClick={() => setCreateOpen(true)}
               className="w-full flex items-center gap-3 group"
             >
               <Avatar name={user?.username || user?.email} imageUrl={user?.profileImage} size={44} />
-              <div className="flex-1 text-left bg-[#202327] hover:bg-[#2f3336] transition-colors rounded-full px-4 py-3 text-[16px] text-[#71767b]">
+              <div className="flex-1 text-left bg-[#1c1f24] hover:bg-[#252a32] border border-white/[0.06] transition-colors rounded-full px-4 py-3 text-[16px] text-tertiary shadow-sm">
                 Share your latest LEGO build...
               </div>
-              <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+              <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-md active:scale-95 transition-transform"
                 style={{ background: 'linear-gradient(135deg, #1d9bf0, #38bdf8)' }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
                   <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -335,22 +391,25 @@ export default function FeedPage() {
 
         {/* Posts list */}
         {loading && posts.length === 0 ? (
-          <>
+          <div className="px-3 sm:px-4 space-y-3 pt-2 pb-2">
             <SkeletonPost />
             <SkeletonPost />
             <SkeletonPost />
-          </>
+          </div>
         ) : (
-          posts.map((post) => (
-            <PostCard
-              key={post._id}
-              post={post}
-              currentUserId={currentUserId}
-              onToggleLike={handleLike}
-              onDeleted={handlePostDeleted}
-              onEdited={handlePostEdited}
-            />
-          ))
+          <div className="px-3 sm:px-4 space-y-3 pt-2 pb-4">
+            {posts.map((post) => (
+              <PostCard
+                key={post._id}
+                post={post}
+                currentUserId={currentUserId}
+                commentsBehavior="navigate"
+                onToggleLike={handleLike}
+                onDeleted={handlePostDeleted}
+                onEdited={handlePostEdited}
+              />
+            ))}
+          </div>
         )}
 
         {!loading && posts.length === 0 && (

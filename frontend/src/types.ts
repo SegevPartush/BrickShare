@@ -32,8 +32,8 @@ export interface AuthContextType {
   user: User | null;
   loading: boolean;
   authHeaders: Record<string, string>;
-  register: (payload: { username: string; email: string; password: string }) => Promise<User>;
-  login: (payload: { email: string; password: string }) => Promise<User>;
+  register: (payload: { username: string; email: string; password: string; rememberMe?: boolean }) => Promise<User>;
+  login: (payload: { email: string; password: string; rememberMe?: boolean }) => Promise<User>;
   refresh: () => Promise<any>;
   logout: () => void;
   setOAuthTokens: (tokens: { accessToken: string; refreshToken: string; userId: string }) => void;

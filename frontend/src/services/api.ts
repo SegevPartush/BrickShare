@@ -45,6 +45,11 @@ export async function getPosts({
   return res.data;
 }
 
+export async function getPost(postId: string) {
+  const res = await api.get(`/api/posts/${postId}`);
+  return res.data.post;
+}
+
 export async function searchPosts(q: string) {
   const res = await api.get('/api/posts/search', { params: { q } });
   return res.data;
@@ -136,8 +141,16 @@ export async function getFollowing(payload: { accessToken: string; targetUserId:
   return res.data.following;
 }
 
-export async function updatePost(payload: { accessToken: string; postId: string; text: string }) {
-  const res = await api.put(`/api/posts/${payload.postId}`, { text: payload.text }, {
+export async function updatePost(payload: {
+  accessToken: string;
+  postId: string;
+  text: string;
+  imageFile?: File | null;
+}) {
+  const form = new FormData();
+  form.append('text', payload.text);
+  if (payload.imageFile) form.append('image', payload.imageFile);
+  const res = await api.put(`/api/posts/${payload.postId}`, form, {
     headers: { Authorization: `Bearer ${payload.accessToken}` }
   });
   return res.data.post;
@@ -172,4 +185,36 @@ export async function deleteComment(payload: { accessToken: string; commentId: s
   await api.delete(`/api/comments/${payload.commentId}`, {
     headers: { Authorization: `Bearer ${payload.accessToken}` }
   });
+}
+
+// ===== Messages =====
+
+export async function sendMessage(payload: { accessToken: string; recipient: string; text: string }) {
+  const res = await api.post(
+    '/api/messages',
+    { recipient: payload.recipient, text: payload.text },
+    { headers: { Authorization: `Bearer ${payload.accessToken}` } }
+  );
+  return res.data.message;
+}
+
+export async function getConversations(accessToken: string) {
+  const res = await api.get('/api/messages', {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  return res.data.conversations || [];
+}
+
+export async function getThread(payload: { accessToken: string; userId: string }) {
+  const res = await api.get(`/api/messages/${payload.userId}`, {
+    headers: { Authorization: `Bearer ${payload.accessToken}` }
+  });
+  return res.data.messages || [];
+}
+
+export async function getUnreadMessagesCount(accessToken: string) {
+  const res = await api.get('/api/messages/unread/count', {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  return (res.data?.count as number) || 0;
 }

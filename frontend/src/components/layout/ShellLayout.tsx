@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import LeftSidebar from './LeftSidebar';
 import CreateBuildModal from '../posts/CreateBuildModal';
+import { useUnreadMessages } from '../../hooks/useUnreadMessages';
 
 interface ShellLayoutProps {
   title?: string;
@@ -35,6 +36,7 @@ const bottomNavItems = [
 export default function ShellLayout({ title, subtitle, children, rightPanel, showTopbar = true }: ShellLayoutProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const unreadMessages = useUnreadMessages();
 
   return (
     <div className="min-h-screen bg-[#000] flex">
@@ -90,7 +92,14 @@ export default function ShellLayout({ title, subtitle, children, rightPanel, sho
             >
               {({ isActive }) => (
                 <>
-                  {icon(isActive)}
+                  <span className="relative">
+                    {icon(isActive)}
+                    {to === '/messages' && unreadMessages > 0 && (
+                      <span className="absolute -top-1 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow ring-2 ring-black">
+                        {unreadMessages > 99 ? '99+' : unreadMessages}
+                      </span>
+                    )}
+                  </span>
                   <span className="text-[10px] font-medium">{label}</span>
                 </>
               )}

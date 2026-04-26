@@ -8,6 +8,21 @@ import { useAuth } from '../context/AuthContext';
 import { Post } from '../types';
 import * as api from '../services/api';
 
+function SkeletonPost() {
+  return (
+    <div className="rounded-2xl border border-[#2f3336]/60 bg-[#0c0d10]/90 p-4 shadow-card animate-pulse">
+      <div className="flex gap-3">
+        <div className="w-12 h-12 rounded-xl bg-white/10 shrink-0" />
+        <div className="flex-1 space-y-3">
+          <div className="h-4 bg-white/10 rounded-lg w-1/3" />
+          <div className="h-4 bg-white/10 rounded-lg w-full" />
+          <div className="h-4 bg-white/10 rounded-lg w-2/3" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Modal לעריכת פרופיל - מאפשר שינוי שם משתמש ותמונת פרופיל
 function EditProfileModal({ user, onClose, onSaved }: { user: any; onClose: () => void; onSaved: () => void }) {
   const { accessToken } = useAuth();
@@ -72,6 +87,7 @@ export default function ProfilePage() {
   const ownId = user?.id || user?._id || '';
   const viewingUserId = paramUserId || ownId;
   const isOwnProfile = !paramUserId || paramUserId === ownId;
+  const currentUserId = ownId;
 
   const [profileUser, setProfileUser] = useState<any>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -110,8 +126,8 @@ export default function ProfilePage() {
     setPosts((prev) => prev.filter((p) => p._id !== postId));
   }
 
-  function handlePostEdited(postId: string, newText: string) {
-    setPosts((prev) => prev.map((p) => (p._id === postId ? { ...p, text: newText } : p)));
+  function handlePostEdited(updated: { _id: string; text?: string; image?: string; title?: string; likes?: any[]; commentCount?: number }) {
+    setPosts((prev) => prev.map((p) => (p._id === updated._id ? { ...p, ...updated } : p)));
   }
 
   useEffect(() => {
@@ -134,6 +150,7 @@ export default function ProfilePage() {
       .then((raw) =>
         setPosts((raw || []).map((p) => ({ ...p, likes: p.likes ?? [] }) as Post))
       )
+      .then((raw: Post[]) => setPosts((raw || []).map((p) => ({ ...p, likes: p.likes ?? [] }))))
       .catch(() => setPosts([]))
       .finally(() => setPostsBusy(false));
   }, [viewingUserId, accessToken, isOwnProfile, user]);
@@ -360,20 +377,12 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* פוסטים — כמו בפיד: לייק/מספרים; תגובות נפתחות רק בלחיצה על אייקון התגובה; תמונה — lightbox בלי תגובות */}
+      {/* ── Posts: scrollable timeline (newest first) — same for both tabs until Liked is implemented ── */}
       {postsBusy ? (
-        <div className="px-3 sm:px-4 space-y-3 pt-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="border-b border-[#2f3336] p-4 animate-pulse">
-              <div className="flex gap-3">
-                <div className="w-12 h-12 rounded-full bg-white/10 shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-white/10 rounded w-1/3" />
-                  <div className="h-4 bg-white/10 rounded w-full" />
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="px-3 sm:px-4 space-y-3 pt-2 pb-2">
+          <SkeletonPost />
+          <SkeletonPost />
+          <SkeletonPost />
         </div>
       ) : posts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 px-4 text-[#71767b]">
@@ -403,6 +412,9 @@ export default function ProfilePage() {
               post={post}
               currentUserId={ownId}
               onToggleLike={handlePostLike}
+              currentUserId={currentUserId}
+              commentsBehavior="thread"
+              onToggleLike={handleLike}
               onDeleted={handlePostDeleted}
               onEdited={handlePostEdited}
             />

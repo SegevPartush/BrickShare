@@ -8,6 +8,7 @@ import SearchPage from './pages/SearchPage';
 import MessagesPage from './pages/MessagesPage';
 import OAuthCallbackPage from './pages/OAuthCallbackPage';
 import ProfilePage from './pages/ProfilePage';
+import PostThreadPage from './pages/PostThreadPage';
 import AIChatWidget from './components/ai/AIChatWidget';
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/auth" element={<Navigate to="/login" replace />} />
         <Route path="/oauth-callback" element={<OAuthCallbackPage />} />
         <Route path="/feed" element={<FeedPage />} />
+        <Route path="/post/:postId" element={<PostThreadPage />} />
         <Route path="/search" element={<SearchPage />} />
         <Route path="/messages" element={<MessagesPage />} />
         <Route path="/profile" element={<ProfilePage />} />

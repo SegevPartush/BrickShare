@@ -119,7 +119,10 @@ export default function CreateBuildModal({ onClose, onCreated }: Props) {
   }
 
   async function handleSubmit() {
-    if (!accessToken || !description.trim()) return;
+    if (!accessToken) return;
+    const t = title.trim();
+    const d = description.trim();
+    if (!t && !d && !image) return;
     setBusy(true);
     setError('');
     try {
@@ -139,7 +142,9 @@ export default function CreateBuildModal({ onClose, onCreated }: Props) {
     }
   }
 
-  const canSubmit = description.trim().length > 0 && !busy;
+  const canSubmit = Boolean(
+    (title.trim() || description.trim() || image) && !busy && accessToken
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 px-4">
