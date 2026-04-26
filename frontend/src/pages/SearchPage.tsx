@@ -22,7 +22,6 @@ type SearchTab = 'people' | 'posts';
 export default function SearchPage() {
   const { accessToken, user: currentUser, refreshUser } = useAuth();
   const navigate = useNavigate();
-  const { accessToken, user: currentUser } = useAuth();
   const currentUserId = currentUser?.id || currentUser?._id || '';
 
   const [tab, setTab] = useState<SearchTab>('people');
