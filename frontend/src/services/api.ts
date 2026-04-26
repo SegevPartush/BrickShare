@@ -29,6 +29,11 @@ export async function getPosts({ page = 1, limit = 10 } = {}) {
   return res.data;
 }
 
+export async function getPost(postId: string) {
+  const res = await api.get(`/api/posts/${postId}`);
+  return res.data.post;
+}
+
 export async function searchPosts(q: string) {
   const res = await api.get('/api/posts/search', { params: { q } });
   return res.data;
@@ -111,8 +116,16 @@ export async function getFollowing(payload: { accessToken: string; targetUserId:
   return res.data.following;
 }
 
-export async function updatePost(payload: { accessToken: string; postId: string; text: string }) {
-  const res = await api.put(`/api/posts/${payload.postId}`, { text: payload.text }, {
+export async function updatePost(payload: {
+  accessToken: string;
+  postId: string;
+  text: string;
+  imageFile?: File | null;
+}) {
+  const form = new FormData();
+  form.append('text', payload.text);
+  if (payload.imageFile) form.append('image', payload.imageFile);
+  const res = await api.put(`/api/posts/${payload.postId}`, form, {
     headers: { Authorization: `Bearer ${payload.accessToken}` }
   });
   return res.data.post;

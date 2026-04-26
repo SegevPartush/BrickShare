@@ -22,6 +22,7 @@
   --border: #2f3336;
   --text-primary: #e7e9ea;
   --text-secondary: #71767b;
+  --text-tertiary: #8b9199;
   --fg: var(--text-primary);
   --muted: var(--text-secondary);
   --hover-overlay: rgba(29, 155, 240, 0.1);
