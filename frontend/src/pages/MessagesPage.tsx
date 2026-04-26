@@ -216,9 +216,9 @@ export default function MessagesPage() {
 
         {/* אזור הצ'אט - ימין */}
         {activeConv ? (
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col min-w-0 min-h-0">
             {/* הדר הצ'אט */}
-            <div className="sticky top-0 bg-black/85 backdrop-blur-xl border-b border-[#2f3336] px-4 py-3 z-10 flex items-center gap-3">
+            <div className="sticky top-0 bg-black/85 backdrop-blur-xl border-b border-[#2f3336] px-4 sm:px-5 py-3 z-10 flex items-center gap-3">
               {/* כפתור חזרה במובייל */}
               <button
                 onClick={() => setActiveUserId(null)}
@@ -235,10 +235,13 @@ export default function MessagesPage() {
               </div>
             </div>
 
-            {/* הודעות */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+            {/* הודעות — dir=ltr כדי שבועות "שלי" יישבו בצד ימין (עקבי בכל הדפדפנים) */}
+            <div
+              className="flex-1 overflow-y-auto min-h-0 px-3 sm:px-5 md:px-6 py-4 sm:py-5 space-y-3.5 bg-gradient-to-b from-[#0c1014] to-black/30"
+              dir="ltr"
+            >
               {activeConv.messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-[#71767b] text-center">
+                <div className="flex flex-col items-center justify-center min-h-[200px] text-[#71767b] text-center">
                   <Avatar name={activeConv.username} imageUrl={activeConv.profileImage} size={72} />
                   <div className="mt-3 font-bold text-[20px] text-white">{activeConv.username}</div>
                   <div className="mt-1 text-[15px]">התחל שיחה עם {activeConv.username}</div>
@@ -247,14 +250,24 @@ export default function MessagesPage() {
                 activeConv.messages.map(msg => {
                   const isMe = msg.senderId === currentUserId;
                   return (
-                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      <div dir="auto" className={`max-w-[70%] px-4 py-2.5 rounded-2xl text-[15px] leading-relaxed ${
-                        isMe
-                          ? 'bg-gradient-to-r from-[#1d9bf0] to-[#38bdf8] text-white rounded-br-sm'
-                          : 'bg-[#202327] text-white rounded-bl-sm'
-                      }`}>
-                        {msg.text}
-                        <div className={`text-[11px] mt-1 ${isMe ? 'text-white/70' : 'text-[#71767b]'}`}>
+                    <div key={msg.id} className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}>
+                      <div
+                        dir="auto"
+                        className={`
+                          w-fit max-w-[min(90%,20rem)]
+                          min-w-[4.5rem] sm:min-w-[5.5rem]
+                          px-4 py-3 rounded-2xl text-base leading-relaxed
+                          break-words shadow-md
+                          ${isMe
+                            ? 'bg-gradient-to-br from-[#1d9bf0] to-[#38bdf8] text-white rounded-br-md shadow-sky-500/15'
+                            : 'bg-[#202327] text-white border border-[#2f3336] rounded-bl-md'
+                          }
+                        `}
+                      >
+                        <p className="m-0 pr-0.5">{msg.text}</p>
+                        <div
+                          className={`text-[11px] tabular-nums mt-1.5 ${isMe ? 'text-white/80' : 'text-[#71767b]'}`}
+                        >
                           {fmtTime(msg.timestamp)}
                         </div>
                       </div>
@@ -262,12 +275,12 @@ export default function MessagesPage() {
                   );
                 })
               )}
-              <div ref={messagesEndRef} />
+              <div ref={messagesEndRef} className="h-2" />
             </div>
 
-            {/* שורת כתיבה */}
-            <div className="border-t border-[#2f3336] px-4 py-3">
-              <div className="flex items-center gap-3">
+            {/* שורת כתיבה — יישור מרווחים ממורד כן כפתור AI צף (ימין) */}
+            <div className="border-t border-[#2f3336] bg-black/50 backdrop-blur-sm pl-3 sm:pl-4 py-3 pb-4 sm:pb-3 pr-16 sm:pr-20">
+              <div className="flex items-center gap-2 sm:gap-3">
                 <input
                   type="text"
                   value={newMessage}
