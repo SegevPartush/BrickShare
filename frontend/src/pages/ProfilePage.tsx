@@ -80,7 +80,7 @@ function EditProfileModal({ user, onClose, onSaved }: { user: any; onClose: () =
 }
 
 export default function ProfilePage() {
-  const { user, logout, accessToken } = useAuth();
+  const { user, logout, accessToken, refreshUser } = useAuth();
   const { userId: paramUserId } = useParams<{ userId?: string }>();
 
   // Viewing own profile if no param or param matches current user
@@ -113,12 +113,12 @@ export default function ProfilePage() {
     });
   }, [posts]);
 
-  async function handleLike(postId: string) {
+  async function handlePostLike(postId: string) {
     if (!accessToken) return;
     try {
       const data = await api.toggleLike({ accessToken, postId });
       const updated = data.post;
-      setPosts((prev) => prev.map((p) => (p._id === updated._id ? { ...p, ...updated } : p)));
+      setPosts((prev) => prev.map((p) => (p._id === updated._id ? { ...p, ...updated, likes: updated.likes } : p)));
     } catch { /* silent */ }
   }
 
@@ -147,19 +147,34 @@ export default function ProfilePage() {
     // Load posts
     setPostsBusy(true);
     api.getUserPosts(viewingUserId)
+      .then((raw) =>
+        setPosts((raw || []).map((p) => ({ ...p, likes: p.likes ?? [] }) as Post))
+      )
       .then((raw: Post[]) => setPosts((raw || []).map((p) => ({ ...p, likes: p.likes ?? [] }))))
       .catch(() => setPosts([]))
       .finally(() => setPostsBusy(false));
+  }, [viewingUserId, accessToken, isOwnProfile, user]);
 
-    // Check if current user follows this profile
-    if (!isOwnProfile && accessToken) {
-      api.getFollowers({ accessToken, targetUserId: viewingUserId })
-        .then((followers: any[]) => {
-          setIsFollowing(followers.some((f: any) => (f.id || f._id) === ownId));
-        })
-        .catch(() => {});
+  // האם אני עוקבת אחרי הפרופיל המוצג — מהשרת, נשאר אחרי ריענון
+  useEffect(() => {
+    if (isOwnProfile || !viewingUserId) return;
+    if (!accessToken) {
+      setIsFollowing(false);
+      return;
     }
-  }, [viewingUserId, accessToken]);
+    if (user?.following !== undefined) {
+      setIsFollowing(user.following.map(String).includes(String(viewingUserId)));
+      return;
+    }
+    if (!ownId) return;
+    api.getFollowers({ accessToken, targetUserId: viewingUserId })
+      .then((followers: any[]) => {
+        setIsFollowing(
+          followers.some((f: any) => String(f.id || f._id) === String(ownId))
+        );
+      })
+      .catch(() => {});
+  }, [viewingUserId, accessToken, isOwnProfile, ownId, user?.following]);
 
   // Keep profileUser in sync after editing own profile
   useEffect(() => {
@@ -170,9 +185,10 @@ export default function ProfilePage() {
     if (!accessToken) { window.location.href = '/login'; return; }
     setFollowBusy(true);
     try {
-      await api.toggleFollow({ accessToken, targetUserId: viewingUserId });
-      setIsFollowing(prev => !prev);
-      setFollowersCount(prev => isFollowing ? prev - 1 : prev + 1);
+      const data = await api.toggleFollow({ accessToken, targetUserId: viewingUserId });
+      setIsFollowing(!!data.following);
+      setFollowersCount((prev) => (data.following ? prev + 1 : Math.max(0, prev - 1)));
+      await refreshUser();
     } catch { /* silent */ }
     finally { setFollowBusy(false); }
   }
@@ -382,6 +398,7 @@ export default function ProfilePage() {
           {isOwnProfile && (
             <button onClick={() => setCreateOpen(true)}
               className="px-8 py-3 rounded-full font-bold text-white text-[15px]"
+              type="button"
               style={{ background: 'linear-gradient(135deg, #1d9bf0, #38bdf8)' }}>
               Share Your First Build
             </button>
@@ -393,6 +410,8 @@ export default function ProfilePage() {
             <PostCard
               key={post._id}
               post={post}
+              currentUserId={ownId}
+              onToggleLike={handlePostLike}
               currentUserId={currentUserId}
               commentsBehavior="thread"
               onToggleLike={handleLike}

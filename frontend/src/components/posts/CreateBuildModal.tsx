@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Avatar from '../ui/Avatar';
 import { useAuth } from '../../context/AuthContext';
 import * as api from '../../services/api';
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
 
 const LEGO_THEMES = [
   'Star Wars', 'Technic', 'City', 'Creator', 'Architecture',
@@ -22,17 +26,95 @@ export default function CreateBuildModal({ onClose, onCreated }: Props) {
   const [theme, setTheme] = useState('');
   const [image, setImage] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [focalX, setFocalX] = useState(50);
+  const [focalY, setFocalY] = useState(50);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
+  const panRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startFx: number;
+    startFy: number;
+  } | null>(null);
+  const previewObjectRef = useRef<string | null>(null);
+
+  const setPreviewObjectUrl = useCallback((url: string | null) => {
+    if (previewObjectRef.current) {
+      URL.revokeObjectURL(previewObjectRef.current);
+      previewObjectRef.current = null;
+    }
+    if (url) {
+      previewObjectRef.current = url;
+    }
+    setPreview(url);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (previewObjectRef.current) {
+        URL.revokeObjectURL(previewObjectRef.current);
+      }
+    },
+    []
+  );
 
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] || null;
     setImage(file);
+    setFocalX(50);
+    setFocalY(50);
     if (file) {
-      const url = URL.createObjectURL(file);
-      setPreview(url);
+      setPreviewObjectUrl(URL.createObjectURL(file));
     } else {
-      setPreview(null);
+      setPreviewObjectUrl(null);
+    }
+  }
+
+  function clearImage() {
+    setImage(null);
+    setFocalX(50);
+    setFocalY(50);
+    setPreviewObjectUrl(null);
+  }
+
+  const imgPosStyle = { objectPosition: `${focalX}% ${focalY}%` as const };
+
+  function onPanPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    e.preventDefault();
+    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+    dragRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startFx: focalX,
+      startFy: focalY
+    };
+  }
+
+  function onPanPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    const d = dragRef.current;
+    if (!d || d.pointerId !== e.pointerId || !panRef.current) return;
+    const w = panRef.current.clientWidth;
+    const h = panRef.current.clientHeight;
+    if (w < 1 || h < 1) return;
+    const ddx = e.clientX - d.startX;
+    const ddy = e.clientY - d.startY;
+    // גרירה ימינה: חושף יותר מהצד השמאלי של התמונה
+    setFocalX(clamp(d.startFx - (ddx / w) * 100, 0, 100));
+    setFocalY(clamp(d.startFy - (ddy / h) * 100, 0, 100));
+  }
+
+  function onPanPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (dragRef.current?.pointerId === e.pointerId) {
+      try {
+        (e.currentTarget as HTMLDivElement).releasePointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+      dragRef.current = null;
     }
   }
 
@@ -44,8 +126,14 @@ export default function CreateBuildModal({ onClose, onCreated }: Props) {
     setBusy(true);
     setError('');
     try {
-      const fullText = t ? `${t}\n\n${d}` : d;
-      await api.createPost({ accessToken, text: fullText, imageFile: image });
+      const fullText = title.trim() ? `${title.trim()}\n\n${description.trim()}` : description.trim();
+      await api.createPost({
+        accessToken,
+        text: fullText,
+        imageFile: image,
+        imageFocalX: image ? focalX : undefined,
+        imageFocalY: image ? focalY : undefined
+      });
       onCreated();
     } catch (e: any) {
       setError(e?.response?.data?.message || 'Failed to share build. Please try again.');
@@ -118,16 +206,65 @@ export default function CreateBuildModal({ onClose, onCreated }: Props) {
 
           {/* Image upload */}
           {preview ? (
-            <div className="relative rounded-2xl overflow-hidden border border-[#2f3336]">
-              <img src={preview} alt="Preview" className="w-full max-h-[340px] object-cover" />
-              <button
-                onClick={() => { setImage(null); setPreview(null); }}
-                className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/70 flex items-center justify-center hover:bg-black transition-colors"
+            <div className="space-y-3">
+              <div className="text-[13px] text-[#71767b]">
+                Drag the photo to choose what shows in the feed frame. Previews use the same crop as the home feed and profile grid.
+              </div>
+              <div className="text-[12px] font-semibold text-[#e7e9ea]">Home feed (16:9)</div>
+              <div
+                ref={panRef}
+                role="img"
+                aria-label="Position photo for feed; drag to pan"
+                className="relative rounded-2xl overflow-hidden border border-[#2f3336] touch-none cursor-grab active:cursor-grabbing select-none aspect-[16/9] bg-[#0f1115] max-h-[min(50vh,360px)]"
+                onPointerDown={onPanPointerDown}
+                onPointerMove={onPanPointerMove}
+                onPointerUp={onPanPointerUp}
+                onPointerCancel={onPanPointerUp}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
+                <img
+                  src={preview}
+                  alt=""
+                  className="w-full h-full object-cover pointer-events-none"
+                  style={imgPosStyle}
+                />
+              </div>
+              <div className="text-[12px] font-semibold text-[#e7e9ea]">Profile grid (square)</div>
+              <div className="max-w-[160px] rounded-xl overflow-hidden border border-[#2f3336] aspect-square bg-[#0f1115]">
+                <img src={preview} alt="" className="w-full h-full object-cover" style={imgPosStyle} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="text-[12px] text-[#71767b] block">
+                  Horizontal
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={focalX}
+                    onChange={e => setFocalX(Number(e.target.value))}
+                    className="w-full mt-1 accent-[#1d9bf0]"
+                  />
+                </label>
+                <label className="text-[12px] text-[#71767b] block">
+                  Vertical
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={focalY}
+                    onChange={e => setFocalY(Number(e.target.value))}
+                    className="w-full mt-1 accent-[#1d9bf0]"
+                  />
+                </label>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={clearImage}
+                  className="text-[13px] font-medium text-red-400 hover:underline"
+                >
+                  Remove photo
+                </button>
+              </div>
             </div>
           ) : (
             <label className="flex flex-col items-center justify-center w-full h-36 rounded-2xl border-2 border-dashed border-[#2f3336] cursor-pointer hover:border-[#1d9bf0] hover:bg-[#1d9bf0]/5 transition-colors group">

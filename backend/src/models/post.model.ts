@@ -3,6 +3,9 @@ import mongoose, { Schema, Document, Model, Types } from 'mongoose';
 export interface IPost extends Document {
   text: string;
   image: string;
+  /** אחוזים ל־object-position: איך ממקמים את התמונה בפריים 16:9 (ברירת 50,50 = מרכז) */
+  imageFocalX: number;
+  imageFocalY: number;
   author: Types.ObjectId;
   likes: Types.ObjectId[];
   createdAt: Date;
@@ -16,6 +19,18 @@ const postSchema = new Schema<IPost>({
   image: {
     type: String,
     default: ''
+  },
+  imageFocalX: {
+    type: Number,
+    default: 50,
+    min: 0,
+    max: 100
+  },
+  imageFocalY: {
+    type: Number,
+    default: 50,
+    min: 0,
+    max: 100
   },
   author: {
     type: Schema.Types.ObjectId,

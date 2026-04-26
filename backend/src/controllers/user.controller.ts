@@ -81,6 +81,7 @@ export const getUserPosts = async (req: Request, res: Response): Promise<Respons
   try {
     const posts = await Post.find({ author: req.params.id })
       .populate('author', 'username profileImage')
+      .populate('likes', 'username profileImage')
       .sort({ createdAt: -1 });
 
     const postsWithComments = await Promise.all(

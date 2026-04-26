@@ -20,6 +20,7 @@ interface UserResult {
 type SearchTab = 'people' | 'posts';
 
 export default function SearchPage() {
+  const { accessToken, user: currentUser, refreshUser } = useAuth();
   const navigate = useNavigate();
   const { accessToken, user: currentUser } = useAuth();
   const currentUserId = currentUser?.id || currentUser?._id || '';
@@ -47,7 +48,17 @@ export default function SearchPage() {
       .catch(() => setSuggestions([]));
   }, [accessToken]);
 
-  // חיפוש משתמשים (מקומי על רשימה מהשרת)
+  // שחזור מצב "עוקב" מהשרת בכל כניסה
+  useEffect(() => {
+    if (!currentUser) {
+      setFollowingIds(new Set());
+      return;
+    }
+    if (currentUser.following === undefined) return;
+    setFollowingIds(new Set(currentUser.following.map((id) => String(id))));
+  }, [currentUser]);
+
+  // חיפוש עם debounce - מחכה 400ms אחרי הקלדה
   useEffect(() => {
     if (tab !== 'people') return;
     if (debounceUsersRef.current) clearTimeout(debounceUsersRef.current);
@@ -113,10 +124,12 @@ export default function SearchPage() {
       const data = await api.toggleFollow({ accessToken, targetUserId });
       setFollowingIds((prev) => {
         const next = new Set(prev);
-        if (data.following) next.add(targetUserId); else next.delete(targetUserId);
+        if (data.following) next.add(String(targetUserId));
+        else next.delete(String(targetUserId));
         return next;
       });
-    } catch { /* */ }
+      await refreshUser();
+    } catch { /* שקט */ }
   }
 
   const handlePostLike = useCallback(
