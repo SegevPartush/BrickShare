@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ShellLayout from '../components/layout/ShellLayout';
 import PostCard from '../components/posts/PostCard';
 import Card from '../components/ui/Card';
@@ -26,6 +27,7 @@ function SkeletonPost() {
 
 export default function FeedPage() {
   const { accessToken, user, logout } = useAuth();
+  const navigate = useNavigate();
   const currentUserId = user?.id || user?._id || '';
   const isSignedIn = Boolean(accessToken);
 
@@ -91,6 +93,22 @@ export default function FeedPage() {
       .catch(() => setSuggestedUsers([]));
   }, [accessToken]);
 
+  // טעינת רשימת המשתמשים שאני עוקב אחריהם - כדי להציג נכון "Following" על הכפתור
+  useEffect(() => {
+    if (!accessToken || !currentUserId) {
+      setFollowingIds(new Set());
+      return;
+    }
+    api.getFollowing({ accessToken, targetUserId: currentUserId })
+      .then((list: any[]) => {
+        const ids = new Set<string>(
+          (list || []).map((u: any) => String(u.id || u._id))
+        );
+        setFollowingIds(ids);
+      })
+      .catch(() => setFollowingIds(new Set()));
+  }, [accessToken, currentUserId]);
+
   // פרסום פוסט חדש
   async function handleCreatePost() {
     if (!accessToken) return;
@@ -134,6 +152,16 @@ export default function FeedPage() {
   // עקוב / הפסק לעקוב
   async function handleFollow(targetUserId: string) {
     if (!accessToken) return;
+    if (!targetUserId || targetUserId === currentUserId) return;
+
+    // עדכון אופטימי - הכפתור מתחלף מיד, ואם השרת ייכשל נחזיר אחורה
+    const wasFollowing = followingIds.has(targetUserId);
+    setFollowingIds(prev => {
+      const next = new Set(prev);
+      if (wasFollowing) next.delete(targetUserId); else next.add(targetUserId);
+      return next;
+    });
+
     try {
       const data = await api.toggleFollow({ accessToken, targetUserId });
       setFollowingIds(prev => {
@@ -141,7 +169,19 @@ export default function FeedPage() {
         if (data.following) next.add(targetUserId); else next.delete(targetUserId);
         return next;
       });
-    } catch { /* שקט */ }
+    } catch (e) {
+      console.error('שגיאה במעקב אחרי משתמש:', e);
+      setFollowingIds(prev => {
+        const next = new Set(prev);
+        if (wasFollowing) next.add(targetUserId); else next.delete(targetUserId);
+        return next;
+      });
+    }
+  }
+
+  function goToProfile(uid: string) {
+    if (!uid) return;
+    navigate(`/profile/${uid}`);
   }
 
   // Right panel - Trending + suggested users
@@ -203,38 +243,46 @@ export default function FeedPage() {
         <div className="px-4 py-3 border-b border-[#2f3336]">
           <div className="font-extrabold text-[20px]">Who to Follow</div>
         </div>
-        {(suggestedUsers.length > 0 ? suggestedUsers : [
-          { _id: 'u1', username: 'sarah_builds' },
-          { _id: 'u2', username: 'dani_technic' },
-          { _id: 'u3', username: 'michal_moc' },
-        ]).map((u: any, i, arr) => {
-          const uid = u.id || u._id;
+        {suggestedUsers.length === 0 ? (
+          <div className="px-4 py-6 text-[13px] text-[#71767b] text-center">
+            אין כרגע משתמשים מומלצים
+          </div>
+        ) : suggestedUsers.map((u: any, i, arr) => {
+          const uid = String(u.id || u._id || '');
           const name = u.username || 'collector';
           const isFollowed = followingIds.has(uid);
+          const isSelf = uid === currentUserId;
           return (
             <div
               key={uid}
               className={`px-4 py-3 hover:bg-white/[0.03] transition-colors ${i < arr.length - 1 ? 'border-b border-[#2f3336]' : ''}`}
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => goToProfile(uid)}
+                  className="flex items-center gap-3 text-right hover:opacity-80 transition-opacity"
+                  title="הצג פרופיל"
+                >
                   <Avatar name={name} imageUrl={u.profileImage} size={44} />
                   <div>
-                    <div className="font-bold text-[15px]">@{name}</div>
+                    <div className="font-bold text-[15px] hover:underline">@{name}</div>
                     <div className="text-[12px] text-[#71767b]">LEGO collector</div>
                   </div>
-                </div>
-                <button
-                  onClick={() => handleFollow(uid)}
-                  disabled={!isSignedIn}
-                  className={`px-4 py-1.5 rounded-full text-[14px] font-bold transition-colors disabled:opacity-50 ${
-                    isFollowed
-                      ? 'border border-[#71767b] text-white hover:border-red-400 hover:text-red-400'
-                      : 'bg-white text-black hover:bg-gray-200'
-                  }`}
-                >
-                  {isFollowed ? 'Following' : 'Follow'}
                 </button>
+                {!isSelf && (
+                  <button
+                    onClick={() => handleFollow(uid)}
+                    disabled={!isSignedIn}
+                    className={`px-4 py-1.5 rounded-full text-[14px] font-bold transition-colors disabled:opacity-50 ${
+                      isFollowed
+                        ? 'border border-[#71767b] text-white hover:border-red-400 hover:text-red-400'
+                        : 'bg-white text-black hover:bg-gray-200'
+                    }`}
+                  >
+                    {isFollowed ? 'Following' : 'Follow'}
+                  </button>
+                )}
               </div>
             </div>
           );
