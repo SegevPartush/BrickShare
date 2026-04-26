@@ -8,13 +8,17 @@ import { Post } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import * as api from '../../services/api';
 
+export type PostCommentsBehavior = 'inline' | 'navigate' | 'thread';
+
 export interface PostCardProps {
   post: Post;
   currentUserId?: string;
   onToggleLike?: (postId: string) => void;
   matchReason?: string;
   onDeleted?: (postId: string) => void;
-  onEdited?: (postId: string, newText: string) => void;
+  onEdited?: (updatedPost: Post) => void;
+  /** inline=הרחבה בפיד, navigate=מעבר ל־/post/:id, thread=דף דיון — תמיד מראה תגובות */
+  commentsBehavior?: PostCommentsBehavior;
 }
 
 function timeAgo(iso?: string): string {
@@ -39,12 +43,12 @@ function isLikedByUser(post: Post, userId?: string): boolean {
   });
 }
 
-export default function PostCard({ post, currentUserId, onToggleLike, matchReason, onDeleted, onEdited }: PostCardProps) {
+export default function PostCard({ post, currentUserId, onToggleLike, matchReason, onDeleted, onEdited, commentsBehavior = 'inline' }: PostCardProps) {
   const { accessToken, user } = useAuth();
   const navigate = useNavigate();
   const isSignedIn = Boolean(accessToken);
 
-  const [showComments, setShowComments] = useState(false);
+  const [showComments, setShowComments] = useState(() => commentsBehavior === 'thread');
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [commentsBusy, setCommentsBusy] = useState(false);
   const [commentsLoaded, setCommentsLoaded] = useState(false);
@@ -57,10 +61,13 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
   const [showMenu, setShowMenu] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editText, setEditText] = useState(post.text || '');
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
   const [editBusy, setEditBusy] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const commentInputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const authorName = post.author?.username || post.author?.email?.split('@')[0] || 'User';
   const authorHandle = '@' + authorName.toLowerCase().replace(/\s+/g, '_');
@@ -101,6 +108,35 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
     if (modalOpen) ensureCommentsLoaded();
   }, [modalOpen]); // eslint-disable-line
 
+  // דף דיון: טוען תגובות בכניסה
+  useEffect(() => {
+    if (commentsBehavior !== 'thread') return;
+    let cancelled = false;
+    setCommentsBusy(true);
+    (async () => {
+      try {
+        const data = await api.getComments(post._id);
+        if (!cancelled) {
+          setComments(data);
+          setCommentsLoaded(true);
+        }
+      } catch {
+        if (!cancelled) setComments([]);
+      } finally {
+        if (!cancelled) setCommentsBusy(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [commentsBehavior, post._id]);
+
+  useEffect(() => {
+    return () => {
+      if (editImagePreview) URL.revokeObjectURL(editImagePreview);
+    };
+  }, [editImagePreview]);
+
   async function handleDelete() {
     if (!accessToken) return;
     setShowMenu(false);
@@ -111,13 +147,40 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
     } catch { /* silent */ }
   }
 
+  function clearEditImage() {
+    if (editImagePreview) {
+      URL.revokeObjectURL(editImagePreview);
+      setEditImagePreview(null);
+    }
+    setEditImageFile(null);
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  }
+
+  function onPickEditImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] || null;
+    setEditImageFile(file);
+    if (editImagePreview) URL.revokeObjectURL(editImagePreview);
+    setEditImagePreview(file ? URL.createObjectURL(file) : null);
+  }
+
+  function closeEditMode() {
+    setEditMode(false);
+    clearEditImage();
+  }
+
   async function handleSaveEdit() {
     if (!accessToken || !editText.trim()) return;
     setEditBusy(true);
     try {
-      await api.updatePost({ accessToken, postId: post._id, text: editText.trim() });
-      onEdited?.(post._id, editText.trim());
+      const updated = await api.updatePost({
+        accessToken,
+        postId: post._id,
+        text: editText.trim(),
+        imageFile: editImageFile || undefined
+      });
+      onEdited?.(updated as Post);
       setEditMode(false);
+      clearEditImage();
     } catch { /* silent */ }
     finally { setEditBusy(false); }
   }
@@ -137,6 +200,18 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
       await ensureCommentsLoaded();
       setTimeout(() => commentInputRef.current?.focus(), 150);
     }
+  }
+
+  function handleCommentButtonClick() {
+    if (commentsBehavior === 'navigate') {
+      navigate(`/post/${post._id}`);
+      return;
+    }
+    if (commentsBehavior === 'thread') {
+      setTimeout(() => commentInputRef.current?.focus(), 50);
+      return;
+    }
+    void handleToggleComments();
   }
 
   async function handleSubmitComment(e: React.FormEvent) {
@@ -163,7 +238,7 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
 
   // שיתוף - משתמש ב-Web Share API אם קיים, אחרת מעתיק ללוח
   async function handleShare() {
-    const shareUrl = `${window.location.origin}/feed?post=${post._id}`;
+    const shareUrl = `${window.location.origin}/post/${post._id}`;
     try {
       if (navigator.share) {
         await navigator.share({ title: `${authorName} on BrickShare`, url: shareUrl });
@@ -176,11 +251,11 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
   }
 
   return (
-    <article className="border-b border-[#2f3336] hover:bg-white/[0.015] transition-colors">
-      <div className="px-4 pt-3 pb-1">
+    <article className="rounded-2xl border border-[#2f3336]/70 bg-gradient-to-b from-[#0d0f14]/98 to-[#080a0d]/98 shadow-card transition-[box-shadow,border-color] duration-200 hover:shadow-card-hover hover:border-[#3a4046]">
+      <div className="px-4 sm:px-5 pt-4 pb-1">
         <div className="flex gap-3">
           <div className="shrink-0 pt-0.5">
-            <button onClick={goToProfile} className="block">
+            <button type="button" onClick={goToProfile} className="block rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1d9bf0]/35">
               <Avatar name={authorName} imageUrl={post.author?.profileImage} size={44} />
             </button>
           </div>
@@ -188,26 +263,36 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span onClick={goToProfile} className="font-bold text-[15px] hover:underline cursor-pointer">{authorName}</span>
-                <span className="text-[#71767b] text-[14px]">{authorHandle}</span>
-                <span className="text-[#71767b]">·</span>
-                <span className="text-[#71767b] text-[13px]">{timeAgo(post.createdAt)}</span>
+                <span onClick={goToProfile} className="font-semibold text-[15px] text-white hover:underline cursor-pointer tracking-tight">{authorName}</span>
+                <span className="text-tertiary text-[13px]">{authorHandle}</span>
+                <span className="text-tertiary">·</span>
+                <span className="text-tertiary text-[13px]">{timeAgo(post.createdAt)}</span>
               </div>
 
               {isOwnPost && (
                 <div className="relative shrink-0" ref={menuRef}>
                   <button
+                    type="button"
                     onClick={() => setShowMenu((v) => !v)}
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-[#71767b] hover:text-white hover:bg-white/10 transition-colors"
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-tertiary hover:text-white hover:bg-white/10 active:scale-95 transition-all"
                   >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                       <circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" />
                     </svg>
                   </button>
                   {showMenu && (
-                    <div className="absolute top-10 right-0 w-44 bg-[#16181c] border border-[#2f3336] rounded-xl shadow-2xl z-20 overflow-hidden">
+                    <div className="absolute top-10 right-0 w-44 bg-[#14161a] border border-[#2f3336]/90 rounded-xl shadow-card-hover z-20 overflow-hidden ring-1 ring-white/[0.04]">
                       <button
-                        onClick={() => { setEditMode(true); setEditText(post.text || ''); setShowMenu(false); }}
+                        onClick={() => {
+                          setEditMode(true);
+                          setEditText(post.text || '');
+                          setEditImageFile(null);
+                          setEditImagePreview((prev) => {
+                            if (prev) URL.revokeObjectURL(prev);
+                            return null;
+                          });
+                          setShowMenu(false);
+                        }}
                         className="w-full flex items-center gap-3 px-4 py-3 text-[15px] text-white hover:bg-white/[0.06] transition-colors"
                       >
                         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -233,7 +318,7 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
             </div>
 
             {matchReason && (
-              <div className="text-[12px] text-[#71767b] mt-0.5 flex items-center gap-1">
+              <div className="text-[12px] text-tertiary mt-0.5 flex items-center gap-1">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                 </svg>
@@ -241,7 +326,7 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
               </div>
             )}
 
-            {post.title && !editMode && <div className="font-bold text-[17px] text-white mt-1.5">{post.title}</div>}
+            {post.title && !editMode && <div className="font-semibold text-lg text-white mt-1.5 tracking-tight">{post.title}</div>}
 
             {editMode ? (
               <div className="mt-2">
@@ -250,20 +335,21 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
                   onChange={(e) => setEditText(e.target.value)}
                   dir="auto"
                   rows={3}
-                  className="w-full bg-[#202327] border border-[#1d9bf0] rounded-xl px-3 py-2 text-[15px] text-white outline-none resize-none"
+                  className="w-full bg-[#1a1d22] border border-[#1d9bf0]/80 rounded-xl px-3 py-2.5 text-[15px] text-white outline-none resize-none shadow-inner"
                   autoFocus
                 />
                 <div className="flex gap-2 mt-2">
                   <button
                     onClick={handleSaveEdit}
                     disabled={editBusy || !editText.trim()}
-                    className="px-4 py-1.5 rounded-full bg-[#1d9bf0] text-white text-[13px] font-bold disabled:opacity-40 hover:bg-[#1a8cd8] transition-colors"
+                    className="px-4 py-1.5 rounded-full bg-[#1d9bf0] text-white text-[13px] font-bold disabled:opacity-40 hover:bg-[#1a8cd8] active:scale-[0.98] transition-all"
                   >
                     {editBusy ? 'Saving...' : 'Save'}
                   </button>
                   <button
-                    onClick={() => setEditMode(false)}
-                    className="px-4 py-1.5 rounded-full border border-[#2f3336] text-white text-[13px] font-bold hover:bg-white/5 transition-colors"
+                    type="button"
+                    onClick={closeEditMode}
+                    className="px-4 py-1.5 rounded-full border border-[#2f3336] text-white text-[13px] font-bold hover:bg-white/5 active:scale-[0.98] transition-all"
                   >
                     Cancel
                   </button>
@@ -271,26 +357,68 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
               </div>
             ) : (
               post.text && (
-                <p className="text-[15px] leading-[1.5] mt-1 whitespace-pre-wrap break-words text-[#e7e9ea]">{post.text}</p>
+                <p className="text-[15px] leading-relaxed mt-1.5 whitespace-pre-wrap break-words text-[#e7e9ea]">{post.text}</p>
               )
             )}
           </div>
         </div>
 
-        {post.image && (
-          <div className="mt-3 ml-[56px] rounded-2xl overflow-hidden border border-[#2f3336] bg-[#0f1115] aspect-[16/9]">
-            <button type="button" onClick={() => setModalOpen(true)} className="block w-full h-full text-left">
-              <img src={post.image} alt="LEGO build" className="w-full h-full object-cover hover:opacity-95 transition-opacity" loading="lazy" />
+        {editMode && (
+          <div className="mt-3 ml-[56px] rounded-2xl border border-[#2f3336]/70 overflow-hidden bg-[#0f1115] p-3 shadow-inner ring-1 ring-white/[0.04]">
+            <div className="rounded-xl overflow-hidden bg-black/40 aspect-[16/9] max-h-[240px] flex items-center justify-center mb-2">
+              {editImagePreview || post.image ? (
+                <img
+                  src={editImagePreview || post.image}
+                  alt=""
+                  className="w-full h-full object-cover max-h-[240px]"
+                />
+              ) : (
+                <span className="text-[13px] text-[#71767b]">אין תמונה – אפשר להוסיף</span>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="text-[13px] font-semibold text-[#1d9bf0] cursor-pointer hover:underline">
+                {post.image || editImageFile ? 'החלף תמונה' : 'הוסף תמונה'}
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={onPickEditImage}
+                />
+              </label>
+              {editImageFile && (
+                <button
+                  type="button"
+                  onClick={clearEditImage}
+                  className="text-[12px] text-[#71767b] hover:text-red-400"
+                >
+                  בטל תמונה חדשה
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {!editMode && post.image && (
+          <div className="mt-3 ml-[56px] rounded-2xl overflow-hidden border border-[#2f3336]/60 bg-[#0f1115] aspect-[16/9] ring-1 ring-white/[0.04]">
+            <button type="button" onClick={() => setModalOpen(true)} className="block w-full h-full text-left group">
+              <img src={post.image} alt="LEGO build" className="w-full h-full object-cover group-hover:opacity-90 transition-opacity duration-200" loading="lazy" />
             </button>
           </div>
         )}
 
-        <div className="ml-[56px] flex items-center justify-between max-w-[380px] mt-1 -ml-1 py-1">
+        <div className="ml-[56px] flex items-center justify-between max-w-[400px] mt-2 -ml-1 py-1.5">
           <button
-            onClick={handleToggleComments}
-            className={`flex items-center gap-1.5 group transition-colors ${showComments ? 'text-[#1d9bf0]' : 'text-[#71767b] hover:text-[#1d9bf0]'}`}
+            type="button"
+            onClick={handleCommentButtonClick}
+            className={`flex items-center gap-1.5 group transition-all active:scale-95 ${
+              (commentsBehavior === 'inline' && showComments) || commentsBehavior === 'thread'
+                ? 'text-[#1d9bf0]'
+                : 'text-tertiary hover:text-[#1d9bf0]'
+            }`}
           >
-            <div className="w-9 h-9 rounded-full flex items-center justify-center group-hover:bg-[#1d9bf0]/10 transition-colors">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center group-hover:bg-[#1d9bf0]/12 transition-colors">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
               </svg>
@@ -299,10 +427,11 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
           </button>
 
           <button
+            type="button"
             onClick={handleLike}
-            className={`flex items-center gap-1.5 group transition-colors ${liked ? 'text-[#f91880]' : 'text-[#71767b] hover:text-[#f91880]'}`}
+            className={`flex items-center gap-1.5 group transition-all active:scale-95 ${liked ? 'text-[#f91880]' : 'text-tertiary hover:text-[#f91880]'}`}
           >
-            <div className="w-9 h-9 rounded-full flex items-center justify-center group-hover:bg-[#f91880]/10 transition-colors">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center group-hover:bg-[#f91880]/12 transition-colors">
               <svg
                 width="18" height="18" viewBox="0 0 24 24"
                 fill={liked ? '#f91880' : 'none'}
@@ -317,10 +446,11 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
           </button>
 
           <button
+            type="button"
             onClick={handleShare}
-            className={`flex items-center gap-1.5 group transition-colors ${shared ? 'text-[#1d9bf0]' : 'text-[#71767b] hover:text-[#1d9bf0]'}`}
+            className={`flex items-center gap-1.5 group transition-all active:scale-95 ${shared ? 'text-[#1d9bf0]' : 'text-tertiary hover:text-[#1d9bf0]'}`}
           >
-            <div className="w-9 h-9 rounded-full flex items-center justify-center group-hover:bg-[#1d9bf0]/10 transition-colors">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center group-hover:bg-[#1d9bf0]/12 transition-colors">
               {shared ? (
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <polyline points="20 6 9 17 4 12" />
@@ -337,8 +467,8 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
         </div>
       </div>
 
-      {showComments && (
-        <div className="px-4 pb-3 ml-[56px] border-t border-[#2f3336]/50 mt-1 pt-3">
+      {(commentsBehavior === 'thread' || (commentsBehavior === 'inline' && showComments)) && (
+        <div className="px-4 sm:px-5 pb-3 ml-[56px] border-t border-white/[0.06] mt-1 pt-3">
           <CommentList
             comments={comments}
             loading={commentsBusy}
@@ -356,7 +486,7 @@ export default function PostCard({ post, currentUserId, onToggleLike, matchReaso
               currentUser={user || undefined}
             />
           ) : (
-            <button onClick={() => { window.location.href = '/login'; }} className="text-[13px] text-[#1d9bf0] hover:underline">
+            <button type="button" onClick={() => { window.location.href = '/login'; }} className="text-[13px] text-[#1d9bf0] hover:underline font-medium">
               Sign in to comment
             </button>
           )}

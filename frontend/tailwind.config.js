@@ -9,7 +9,8 @@ module.exports = {
         fg: 'var(--fg)',
         border: 'var(--border)',
         muted: 'var(--muted)',
-        accent: 'var(--accent)'
+        accent: 'var(--accent)',
+        tertiary: 'var(--text-tertiary)'
       },
       spacing: {
         '4': '4px',
@@ -25,7 +26,9 @@ module.exports = {
       },
       boxShadow: {
         soft: '0 1px 2px rgba(0,0,0,0.06)',
-        hairline: '0 0 0 1px rgba(0,0,0,0.03)'
+        hairline: '0 0 0 1px rgba(0,0,0,0.03)',
+        card: '0 4px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
+        'card-hover': '0 8px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06)'
       },
       fontSize: {
         title: ['28px', { lineHeight: '36px', fontWeight: '650' }],

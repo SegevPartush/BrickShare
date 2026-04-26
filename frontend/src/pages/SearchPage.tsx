@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ShellLayout from '../components/layout/ShellLayout';
 import Avatar from '../components/ui/Avatar';
 import PostCard from '../components/posts/PostCard';
@@ -19,6 +20,7 @@ interface UserResult {
 type SearchTab = 'people' | 'posts';
 
 export default function SearchPage() {
+  const navigate = useNavigate();
   const { accessToken, user: currentUser } = useAuth();
   const currentUserId = currentUser?.id || currentUser?._id || '';
 
@@ -133,8 +135,8 @@ export default function SearchPage() {
     setPostResults((prev) => prev.filter((p) => p._id !== postId));
   }, []);
 
-  const handlePostEdited = useCallback((postId: string, newText: string) => {
-    setPostResults((prev) => prev.map((p) => (p._id === postId ? { ...p, text: newText } : p)));
+  const handlePostEdited = useCallback((updated: Post) => {
+    setPostResults((prev) => prev.map((p) => (p._id === updated._id ? { ...p, ...updated } : p)));
   }, []);
 
   function UserCard({ u }: { u: UserResult }) {
@@ -143,9 +145,25 @@ export default function SearchPage() {
     const isFollowed = followingIds.has(uid);
     const isMe = uid === currentUserId;
 
+    function goToProfile() {
+      if (uid) navigate(`/profile/${uid}`);
+    }
+
     return (
-      <div className="flex items-center justify-between px-4 py-3 hover:bg-white/[0.03] transition-colors border-b border-[#2f3336] last:border-b-0">
-        <div className="flex items-center gap-3 min-w-0">
+      <div
+        className="flex items-center justify-between px-4 py-3 hover:bg-white/[0.03] transition-colors border-b border-[#2f3336] last:border-b-0"
+        style={{ cursor: uid ? 'pointer' : 'default' }}
+        onClick={goToProfile}
+        onKeyDown={(e) => {
+          if (uid && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            goToProfile();
+          }
+        }}
+        role={uid ? 'link' : undefined}
+        tabIndex={uid ? 0 : undefined}
+      >
+        <div className="flex items-center gap-3 min-w-0 flex-1 text-right">
           <Avatar name={name} imageUrl={u.profileImage} size={44} />
           <div className="min-w-0">
             <div className="font-bold text-[15px] truncate">{name}</div>
@@ -161,7 +179,11 @@ export default function SearchPage() {
         </div>
         {!isMe && (
           <button
-            onClick={() => handleFollow(uid)}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleFollow(uid);
+            }}
             className={`shrink-0 px-4 py-1.5 rounded-full text-[14px] font-bold transition-colors ${
               isFollowed
                 ? 'border border-[#71767b] text-white hover:border-red-400 hover:text-red-400'
@@ -294,17 +316,22 @@ export default function SearchPage() {
             {query.trim() && !searchError && postResults.length === 0 && (
               <div className="px-4 py-12 text-center text-[#71767b]">לא נמצאו פוסטים רלוונטיים לשאילתה</div>
             )}
-            {query.trim() && postResults.map((post) => (
-              <PostCard
-                key={post._id}
-                post={post}
-                currentUserId={currentUserId}
-                matchReason={post.matchReason}
-                onToggleLike={handlePostLike}
-                onDeleted={handlePostDeleted}
-                onEdited={handlePostEdited}
-              />
-            ))}
+            {query.trim() && (
+              <div className="px-3 sm:px-4 space-y-3 pt-2">
+                {postResults.map((post) => (
+                  <PostCard
+                    key={post._id}
+                    post={post}
+                    currentUserId={currentUserId}
+                    matchReason={post.matchReason}
+                    commentsBehavior="navigate"
+                    onToggleLike={handlePostLike}
+                    onDeleted={handlePostDeleted}
+                    onEdited={handlePostEdited}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

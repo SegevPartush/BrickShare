@@ -49,7 +49,7 @@ export default function CommentList({ comments, loading, loaded, currentUserId, 
   }
 
   if (comments.length === 0) {
-    return loaded ? <div className="text-[13px] text-[#71767b] mb-3">No comments yet. Be the first!</div> : null;
+    return loaded ? <div className="text-[13px] text-tertiary mb-3">No comments yet. Be the first!</div> : null;
   }
 
   return (
@@ -64,16 +64,16 @@ export default function CommentList({ comments, loading, loaded, currentUserId, 
               <Avatar name={name} imageUrl={c.author?.profileImage} size={avatarSize} />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="bg-[#1c1f23] rounded-2xl px-3 py-2">
-                <span className="font-bold text-[13px] mr-1.5">{name}</span>
-                <span className="text-[14px] text-white/90 leading-relaxed">{c.text}</span>
+              <div className="bg-[#1a1d22] rounded-2xl px-3 py-2 border border-white/[0.05] shadow-sm">
+                <span className="font-semibold text-[13px] text-white mr-1.5">{name}</span>
+                <span className="text-[14px] text-white/92 leading-relaxed">{c.text}</span>
               </div>
-              <div className="text-[11px] text-[#71767b] mt-1 px-1 flex items-center gap-2">
+              <div className="text-[11px] text-tertiary mt-1 px-1 flex items-center gap-2">
                 <span>{timeAgo(c.createdAt)}</span>
                 {canDelete && (
                   <>
                     <span>·</span>
-                    <button type="button" onClick={() => onDelete?.(c._id)} className="text-red-400 hover:text-red-300">
+                    <button type="button" onClick={() => onDelete?.(c._id)} className="text-red-400/95 hover:text-red-300 transition-colors">
                       Delete
                     </button>
                   </>
